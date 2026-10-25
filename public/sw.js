@@ -1,6 +1,6 @@
 // Service worker: caché básica de la app y recepción de avisos push.
 // El texto del aviso es SIEMPRE genérico: nunca se lee nada del contenido del push.
-const CACHE = 'noviembrada-v6';
+const CACHE = 'noviembrada-v7';
 const SHELL = ['./', 'index.html', 'app.js', 'contract.js', 'config.js', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -27,7 +27,7 @@ self.addEventListener('push', e => {
   // Solo el aviso de bienvenida lleva texto propio; el resto llega sin contenido y sale genérico.
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { }
   e.waitUntil(self.registration.showNotification(d.title || 'NOVIEMBRADA', {
-    body: d.body || 'Tienes un aviso.', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'noviembrada', renotify: true
+    body: d.body || 'Tienes un aviso.', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || 'noviembrada', renotify: true
   }));
 });
 

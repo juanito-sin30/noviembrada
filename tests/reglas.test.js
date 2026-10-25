@@ -388,8 +388,8 @@ test('avisos: el texto de la cola es genérico y no lleva nombres', async () => 
   const { g, P } = await partida(4);
   await sortea(g, P, 'Gonzalo');
   await toca(g, P.Gonzalo, P.Aina);
-  const cols = (await g.sql(`select column_name from information_schema.columns where table_name='outbox'`)).rows.map(r => r.column_name);
-  assert.ok(!cols.includes('body') && !cols.includes('title'));
+  const sinTexto = (await g.sql(`select count(*)::int n from outbox where kind <> 'join' and body is not null`)).rows[0].n;
+  assert.equal(sinTexto, 0, 'solo las solicitudes de ingreso llevan texto propio');
   const q = (await g.sql(`select kind, player_id from outbox where kind='touch'`)).rows;
   assert.equal(q.length, 1); assert.equal(q[0].player_id, P.Aina.id);
   await g.close();
@@ -449,5 +449,18 @@ test('lista de jugadores: solo nombres de admitidos, sin estado', async () => {
   assert.deepEqual(l.map(x => x.name), ['Aina', 'Gonzalo', 'Juanito', 'Lola']);
   assert.deepEqual(l.filter(x => x.me).map(x => x.name), ['Aina']);
   assert.deepEqual(Object.keys(l[0]).sort(), ['me', 'name']);
+  await g.close();
+});
+
+test('solicitud de ingreso: aviso con el nombre a todos los jugadores admitidos (y solo a ellos)', async () => {
+  const g = await freshDb();
+  const a = await g.join('Aina'), b = await g.join('Gonzalo'), c = await g.join('Juanito');
+  await g.sql('delete from outbox');
+  const d = await g.join('Lola Prueba');
+  const rows = (await g.sql(`select player_id, kind, body, tag from outbox order by player_id`)).rows;
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map(r => r.player_id).sort(), [a.id, b.id, c.id].sort());
+  assert.ok(rows.every(r => r.kind === 'join' && r.body.includes('Lola Prueba') && r.tag.startsWith('join-')));
+  assert.ok(!rows.some(r => r.player_id === d.id), 'el aspirante no recibe su propio aviso');
   await g.close();
 });

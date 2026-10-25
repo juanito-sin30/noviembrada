@@ -13,15 +13,22 @@ Deno.serve(async (req) => {
   const t = await sb.rpc('tick');
   if (t.error) console.error('tick', t.error.message);
 
-  const { data: rows, error } = await sb.from('outbox').select('id, player_id, kind').is('sent_at', null).order('id').limit(500);
+  const { data: rows, error } = await sb.from('outbox').select('id, player_id, kind, body, tag').is('sent_at', null).order('id').limit(500);
   if (error) return new Response(error.message, { status: 500 });
   if (!rows?.length) return Response.json({ sent: 0 });
 
-  const WELCOME = JSON.stringify({ title: 'NOVIEMBRADA', body: 'Bienvenido a la Noviembrada pibes ETSEIB' });
-  const kinds = new Map<string, Set<string>>();
-  for (const r of rows) { if (!kinds.has(r.player_id)) kinds.set(r.player_id, new Set()); kinds.get(r.player_id)!.add(r.kind); }
-  const players = [...kinds.keys()];
-  const { data: subs } = await sb.from('push_subscriptions').select('id, player_id, endpoint, p256dh, auth').in('player_id', players);
+  const WELCOME = { title: 'NOVIEMBRADA', body: 'Bienvenido a la Noviembrada pibes ETSEIB', tag: 'welcome' };
+  // Por jugador: avisos con texto propio (bienvenida, solicitudes de ingreso) y, si hay más, uno genérico.
+  type Msg = { title: string; body: string; tag: string };
+  const per = new Map<string, { msgs: Map<string, Msg>; generic: boolean }>();
+  for (const r of rows) {
+    const e = per.get(r.player_id) ?? { msgs: new Map<string, Msg>(), generic: false };
+    per.set(r.player_id, e);
+    if (r.kind === 'welcome') e.msgs.set('welcome', WELCOME);
+    else if (r.body) e.msgs.set(r.tag ?? r.body, { title: 'NOVIEMBRADA', body: r.body, tag: r.tag ?? 'noviembrada' });
+    else e.generic = true;
+  }
+  const { data: subs } = await sb.from('push_subscriptions').select('id, player_id, endpoint, p256dh, auth').in('player_id', [...per.keys()]);
 
   let sent = 0, dead: number[] = [];
   const push = async (s: { id: number; endpoint: string; p256dh: string; auth: string }, payload: string) => {
@@ -34,9 +41,9 @@ Deno.serve(async (req) => {
     }
   };
   await Promise.all((subs ?? []).map(async (s) => {
-    const k = kinds.get(s.player_id)!;
-    if (k.has('welcome')) await push(s, WELCOME);              // bienvenida: único texto no genérico
-    if ([...k].some((x) => x !== 'welcome')) await push(s, '{}'); // el resto: siempre «Tienes un aviso.»
+    const e = per.get(s.player_id)!;
+    for (const m of e.msgs.values()) await push(s, JSON.stringify(m));
+    if (e.generic) await push(s, '{}');            // el resto: siempre «Tienes un aviso.»
   }));
   if (dead.length) await sb.from('push_subscriptions').delete().in('id', dead);
   await sb.from('outbox').update({ sent_at: new Date().toISOString() }).in('id', rows.map((r) => r.id));
