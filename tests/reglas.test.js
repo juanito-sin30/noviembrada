@@ -179,21 +179,40 @@ test('silencio de 24 h = confirmado', async () => {
   await g.sql(`update game_config set clock_offset = interval '24 hours 1 minute'`);
   await g.rpc(P.Aina, 'heartbeat');
   assert.equal((await g.sql('select status from touches where id=$1', [id])).rows[0].status, 'confirmed');
-  await rejects(g.rpc(P.Aina, 'respond_touch', id, 'confirm'), 'already_resolved');
+  await rejects(g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45)), 'already_resolved');
   await g.close();
 });
 
-test('el tocado puede confirmar; solo el tocado responde', async () => {
+test('el toque cuenta al registrarlo; el tocado no confirma y solo él puede disputar', async () => {
   const { g, P } = await partida(4);
   await sortea(g, P, 'Gonzalo');
   const id = await toca(g, P.Gonzalo, P.Aina, 0, 'Metro');
+  assert.equal((await g.rpc(P.Aina, 'me')).holds, true);
+  assert.equal((await g.rpc(P.Gonzalo, 'me')).holds, false);
   const aviso = (await g.rpc(P.Aina, 'me')).notice;
   assert.equal(aviso.from, 'Gonzalo');
   assert.equal(aviso.place, 'Metro');
-  await rejects(g.rpc(P.Juanito, 'respond_touch', id, 'confirm'), 'not_found');
-  await rejects(g.rpc(P.Gonzalo, 'respond_touch', id, 'confirm'), 'not_found');
-  await g.rpc(P.Aina, 'respond_touch', id, 'confirm');
-  assert.equal((await g.rpc(P.Aina, 'me')).notice, null);
+  await rejects(g.rpc(P.Aina, 'respond_touch', id, 'confirm'), 'invalid_action');
+  await rejects(g.rpc(P.Juanito, 'respond_touch', id, 'dispute', 'x'.repeat(45)), 'not_found');
+  await rejects(g.rpc(P.Gonzalo, 'respond_touch', id, 'dispute', 'x'.repeat(45)), 'not_found');
+  await g.close();
+});
+
+test('ranking: suma tramos cerrados; el tramo en curso no se muestra hasta el final', async () => {
+  const { g, P } = await partida(4);
+  await sortea(g, P, 'Gonzalo');
+  await g.sql(`update game_config set clock_offset = interval '2 hours'`);
+  await toca(g, P.Gonzalo, P.Aina);
+  const r = await g.rpc(P.Juanito, 'ranking');
+  const por = Object.fromEntries(r.map(x => [x.name, x.secs]));
+  const esperado = (await g.sql(`select extract(epoch from (now() + clock_offset - start_at))::int as s from game_config`)).rows[0].s;
+  assert.ok(Math.abs(por.Gonzalo - esperado) < 120, 'Gonzalo desde el sorteo hasta su toque');
+  assert.equal(por.Aina, 0);
+  assert.equal(r[r.length - 1].name, 'Gonzalo');
+  await g.sql(`update game_config set clock_offset = interval '10 days'`);
+  await g.sql(`update game_config set end_at = now() + interval '9 days'`);
+  const fin = Object.fromEntries((await g.rpc(P.Juanito, 'ranking')).map(x => [x.name, x.secs]));
+  assert.ok(fin.Aina > 6 * 86400);
   await g.close();
 });
 

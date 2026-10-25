@@ -234,3 +234,6 @@ textarea.field:focus,.field:focus{border-color:var(--seal);outline:none;box-shad
 .plist li:last-child{border-bottom:0}
 .plist .av{background:var(--sunk)}
 .plist .nm{flex:1;min-width:0;font-weight:500}
+
+.plist.rank .pos{width:24px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--muted)}
+.plist.rank .tm{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px;white-space:nowrap}

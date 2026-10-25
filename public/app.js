@@ -133,7 +133,7 @@ function go(view, extra) {
   Object.assign(S, extra || {}); S.view = view; render();
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
-const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
+const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', ranking: 'ranking', contrato: 'contrato', clausula: 'contrato' })[v];
 const hoursLeft = c => Math.max(0, Math.ceil((ts(c.closes_at) - now()) / 36e5));
 
 function header(opts) {
@@ -151,6 +151,7 @@ function nav() {
    <button data-act="tab" data-v="estado" ${t === 'estado' ? 'aria-current="page"' : ''}>${n}${I.clock}Estado</button>
    <button data-act="tab" data-v="junta" ${t === 'junta' ? 'aria-current="page"' : ''}>${j}${I.hall}Junta</button>
    <button data-act="tab" data-v="jugadores" ${t === 'jugadores' ? 'aria-current="page"' : ''}>${I.people}Jugadores</button>
+   <button data-act="tab" data-v="ranking" ${t === 'ranking' ? 'aria-current="page"' : ''}>${I.rank}Ranking</button>
    <button data-act="tab" data-v="contrato" ${t === 'contrato' ? 'aria-current="page"' : ''}>${I.doc}Contrato</button></nav>`;
 }
 function thumbs(media, removable, group) {
@@ -233,7 +234,7 @@ function vTocar() {
     <div class="sp-16"><div class="label">Pruebas (opcional)</div>${mediaPicker('tocar', t, `Quedan en el registro. Las verá ${who ? esc(who) : 'el tocado'} y, si hay disputa, la Junta. Al final del mes se publican para todos.`)}</div>
     ${t.err && !t.media.length ? `<p class="err" role="alert">${esc(t.err)}</p>` : ''}
     <div class="push" style="padding-top:22px"><button class="btn ${t.busy ? 'spin' : ''}" type="submit" ${t.to && !t.busy ? '' : 'disabled'}>${t.busy ? 'Registrando…' : 'Registrar toque'}</button>
-    <p class="small sp-12" style="text-align:center">${t.to ? `Solo se avisará a ${esc(who || 'el tocado')}. Si calla durante 24 h, cuenta como confirmado.` : 'Elige a quién has tocado.'}</p></div>
+    <p class="small sp-12" style="text-align:center">${t.to ? `Solo se avisará a ${esc(who || 'el tocado')}. El toque cuenta ya; ${esc(who || 'el tocado')} puede disputarlo durante 24 h.` : 'Elige a quién has tocado.'}</p></div>
   </form></main>` };
 }
 
@@ -243,13 +244,14 @@ function vAviso() {
   const deadline = ts(e.registered_at) + 864e5, rest = left(deadline - now()), pct = Math.max(0, Math.min(100, (deadline - now()) / 864e5 * 100));
   return { html: `${header()}<main class="main"><section class="screen pad fade">
     <span class="pill solid drop-in" style="align-self:flex-start">Aviso</span>
-    <h1 class="sp-12" style="font-size:32px;line-height:1.12">${esc(e.from)} dice que te ha tocado.</h1>
+    <h1 class="sp-12" style="font-size:32px;line-height:1.12">${esc(e.from)} te ha pillado.</h1>
+    <p class="lede">Ya la llevas. Si no estás de acuerdo, puedes disputarlo.</p>
     <dl class="card dl"><div><dt>Cuándo</dt><dd>${when(ts(e.touched_at))}</dd></div><div><dt>Dónde</dt><dd>${esc(e.place || 'Sin indicar')}</dd></div><div><dt>Registrado</dt><dd>${fmtTime(ts(e.registered_at))} · a ${Math.round((ts(e.registered_at) - ts(e.touched_at)) / 6e4)} min del toque</dd></div></dl>
     ${e.media.length ? `<div class="sp-16"><div class="label">Pruebas de ${esc(e.from)}</div>${thumbs(e.media, false)}</div>` : ''}
-    <div class="sp-20"><div class="row"><span style="color:var(--muted)">Tiempo para responder</span><strong style="font-variant-numeric:tabular-nums">${rest.h + rest.d * 24} h ${pad2(rest.m)} min</strong></div>
+    <div class="sp-20"><div class="row"><span style="color:var(--muted)">Tiempo para disputar</span><strong style="font-variant-numeric:tabular-nums">${rest.h + rest.d * 24} h ${pad2(rest.m)} min</strong></div>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <p class="small sp-8" style="font-size:13px">Si callas hasta el final, cuenta como «sí». Quien calla otorga, y más en un chat de grupo.</p></div>
-    <div class="stack push" style="gap:10px;padding-top:20px"><button class="btn pulse" data-act="confirm">Confirmar: la llevo</button><button class="btn line" data-act="go-disputa">Disputar</button></div>
+      <p class="small sp-8" style="font-size:13px">Pasado ese plazo, el toque queda firme.</p></div>
+    <div class="stack push" style="gap:10px;padding-top:20px"><button class="btn line" data-act="go-disputa">Disputar</button><button class="btn" data-act="tab-estado">Entendido</button></div>
     <p class="small sp-12">Para disputar tendrás que escribir qué pasó. Tu versión llega a la Junta de Sabios y se sabrá que hubo un toque entre ${esc(e.from)} y tú. Nada más.</p>
   </section></main>${nav()}` };
 }
@@ -333,6 +335,17 @@ function vCaso() {
       <div class="life" style="margin:0 0 10px">${I.smallLock}Tu voto es anónimo: se guarda sin tu nombre.</div>
       ${canVote ? `<button class="btn" data-act="vote" ${S.pick ? '' : 'disabled'}>Emitir voto</button>` : `<button class="btn" disabled>${party ? 'No votas en tu propio caso' : c.status === 'closed' ? 'Votación cerrada' : 'Voto emitido'}</button>`}
     </div></section></main>${nav()}` };
+}
+
+const hms = secs => { const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60); return d ? `${d} d ${h} h ${pad2(m)} min` : h ? `${h} h ${pad2(m)} min` : `${m} min`; };
+function vRanking() {
+  const rk = S.ranking || [];
+  const rows = rk.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}${p.me ? ' <span class="pill">Tú</span>' : ''}</span><span class="tm">${p.secs ? hms(p.secs) : '—'}</span></li>`).join('');
+  return { html: `${header()}<main class="main"><section class="screen pad fade">
+    <h1>Ranking</h1>
+    <p class="lede">Tiempo total que cada jugador la ha llevado. Cuanto menos, mejor. Solo cuentan los tramos ya terminados: el de quien la lleva ahora no se ve hasta el final.</p>
+    <ol class="card plist rank">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
+  </section></main>${nav()}` };
 }
 
 function vJugadores() {
@@ -497,7 +510,7 @@ function sheetHtml() {
 }
 
 /* ---------- render ---------- */
-const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
+const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, ranking: vRanking, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
   const keep = [...app.querySelectorAll('.toast,.push-note')];
@@ -577,6 +590,7 @@ async function poll() {
     else if (S.view === 'espera' && player() && player().status === 'admitted' && !player().next_edition) { go('estado'); toast('La Junta te ha aceptado. Ya eres jugador.'); }
     else if (['espera', 'junta'].includes(S.view)) { if (S.view === 'junta') await loadCases(); render(); }
     else if (S.view === 'jugadores') { S.players = await rpc('list_players'); render(); }
+    else if (S.view === 'ranking') { S.ranking = await rpc('ranking'); render(); }
     else if (['contrato'].includes(S.view)) render();
   } catch (_) { /* sin red: se reintenta */ }
 }
@@ -744,7 +758,7 @@ app.addEventListener('click', async e => {
   const a = b.dataset.act;
   try {
     switch (a) {
-      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { S.players = await rpc('list_players'); } go(b.dataset.v); break;
+      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { S.players = await rpc('list_players'); } if (b.dataset.v === 'ranking') { S.ranking = await rpc('ranking'); } go(b.dataset.v); break;
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;
@@ -754,7 +768,6 @@ app.addEventListener('click', async e => {
       case 'ago': S.tocar.ago = +b.dataset.m; render(); break;
       case 'rm-media': { const st = b.dataset.g === 'tocar' ? S.tocar : S.disputa; st.media.splice(+b.dataset.i, 1); render(); break; }
       case 'open-aviso': document.querySelectorAll('.push-note').forEach(n => n.remove()); await refresh(); if (notice()) go('aviso'); else go('estado'); break;
-      case 'confirm': { const n = notice(); if (n) { await rpc('respond_touch', { p_touch: n.touch_id, p_action: 'confirm' }); await refresh(); go('estado'); toast('Confirmado. La llevas.'); } break; }
       case 'go-disputa': S.disputa = fresh.disputa(); go('disputa'); break;
       case 'cancel-disputa': go('aviso'); break;
       case 'open-case': S.pick = null; S.version = fresh.version(); S.caseId = +b.dataset.id; await loadCase(S.caseId); go('caso'); break;
