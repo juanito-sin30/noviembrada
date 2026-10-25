@@ -1,0 +1,7 @@
+.secrets.env
+.env*
+node_modules/
+.tools/
+supabase/.temp/
+supabase/.branches/
+.DS_Store

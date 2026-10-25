@@ -1,0 +1,52 @@
+# Noviembrada
+
+App del juego «La llevas»: PWA para iPhone, servidor en Supabase, alojamiento en GitHub Pages.
+Todo es gratuito. El servidor es el árbitro: nadie puede leer quién la lleva salvo esa persona.
+
+## Estructura
+- `public/` → la app (HTML + JS en módulos, sin compilación): `index.html`, `app.js`, `sw.js`, `manifest.webmanifest`, `icons/`.
+- `supabase/migrations/` → esquema, reglas, RLS, almacenamiento de pruebas y avisos.
+- `supabase/functions/send-push/` → función que envía los avisos push (siempre «Tienes un aviso.»).
+- `supabase/admin/` → scripts de administración.
+- `tests/` → 31 pruebas automáticas de las reglas.
+
+## Pruebas de las reglas
+```
+cd tests && npm install && npm test
+```
+Usan un Postgres embebido (no hace falta Docker) con las mismas funciones y políticas.
+
+## Desplegar
+1. **Base de datos:** `npx supabase link --project-ref <ref>` y `npx supabase db push`.
+2. **Avisos:** `npx supabase secrets set VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… CRON_SECRET=…` y
+   `npx supabase functions deploy send-push --no-verify-jwt --use-api`. Después, guarda en la tabla
+   `app_secrets` las claves `send_push_url` y `cron_secret` (la migración 0003 ya programa el cron cada minuto).
+3. **Web:** GitHub Pages publica `public/` con el workflow de `.github/workflows/pages.yml`.
+4. **Claves públicas:** `public/config.js` (URL de Supabase, clave anon y clave VAPID pública). Nunca pongas la clave secreta ahí.
+
+## Hacer el sorteo (31 oct)
+1. Regístrate en la app (los 3 primeros son fundadores) y hazte administrador con `supabase/admin/make_admin.sql`.
+2. Con todos delante: **Admin → Hacer el sorteo → Hacer el sorteo ahora**. El resultado es secreto: solo lo ve el elegido.
+   No se puede repetir.
+
+## Resetear una contraseña
+Edita `supabase/admin/reset_password.sql` (nombre en minúsculas, sin acentos, con puntos: «Marta Puig» → `marta.puig`) y ejecútalo.
+
+## Modo de prueba (fechas falsas)
+```
+npx supabase db query --linked "update public.game_config set test_mode = true"
+```
+Con el modo activo, quien es administrador ve en **Admin**: partida de 1 hora, adelantar el reloj 24 h,
+volver al reloj real y reiniciar la partida de prueba. **Antes del 31 de octubre, desactívalo y reinicia:**
+```
+update public.game_config set test_mode=false, draw_done=false, forced_loser=null, clock_offset='0',
+  start_at='2026-10-31 23:00:00+00', end_at='2026-11-30 22:59:59+00', dispute_end_at='2026-12-07 22:59:59+00';
+delete from public.cases; delete from public.touches; delete from public.outbox;
+```
+
+## Reglas aplicadas por defecto (pendientes de que las confirmes)
+- Votaciones de admisión, disputa y reforma: 48 h, o antes si votan todos. Admisión sin votos al vencer: rechazada.
+- Disputa con empate persistente: el toque se mantiene.
+- Anular un toque deja sin efecto los posteriores que dependían de él.
+- Quien sale siendo portador queda como Perdedor automático; el juego sigue para los demás.
+- Treguas: aún no implementadas.
