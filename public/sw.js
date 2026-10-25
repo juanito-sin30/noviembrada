@@ -1,6 +1,6 @@
 // Service worker: caché básica de la app y recepción de avisos push.
 // El texto del aviso es SIEMPRE genérico: nunca se lee nada del contenido del push.
-const CACHE = 'noviembrada-v10';
+const CACHE = 'noviembrada-v11';
 const SHELL = ['./', 'index.html', 'app.js', 'contract.js', 'config.js', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -15,7 +15,7 @@ self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then(r => {
+    fetch(e.request, { cache: 'no-cache' }).then(r => {
       const copy = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy));
       return r;

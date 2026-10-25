@@ -836,7 +836,19 @@ setInterval(poll, 20000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.session) { sb.rpc('heartbeat').then(() => poll()); } });
 
 /* ---------- arranque ---------- */
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+// Actualización automática: si hay versión nueva, se instala sola y la app se recarga en un momento seguro.
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller; let updated = false;
+  const safe = () => !['tocar', 'disputa', 'reforma', 'registro', 'entrar'].includes(S.view) && !S.sheet;
+  const reloadIfReady = () => { if (updated && safe()) location.reload(); };
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) { updated = true; reloadIfReady(); } });
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    const check = () => reg.update().catch(() => { });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { reloadIfReady(); check(); } });
+    setInterval(() => { check(); reloadIfReady(); }, 5 * 60 * 1000);
+    check();
+  }).catch(() => { });
+}
 sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT' && S.me) { S.me = null; S.session = null; go('entrar'); } });
 (async function boot() {
   render();
