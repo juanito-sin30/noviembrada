@@ -1,6 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.100.0/+esm';
 import { SUPABASE_URL, SUPABASE_KEY, VAPID_PUBLIC_KEY } from './config.js';
-import { CONTRACT, I } from './contract.js';
+import { CONTRACT, I as ICONS } from './contract.js';
+const I = { ...ICONS, people: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 13.8c2.3.2 4 1.9 4 4.7"/></svg>' };
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'noviembrada-auth' }
@@ -98,7 +99,7 @@ const fresh = {
 };
 const S = {
   me: null, view: 'cargando', reveal: false, targets: [], cases: [], detail: null, caseId: null, pick: null,
-  final: null, clauseIdx: 1, replayKey: 0,
+  final: null, players: [], clauseIdx: 1, replayKey: 0,
   tocar: fresh.tocar(), disputa: fresh.disputa(), sol: fresh.sol(), login: fresh.login(),
   version: fresh.version(), reforma: fresh.reforma(), sheet: false, push: 'unknown'
 };
@@ -132,7 +133,7 @@ function go(view, extra) {
   Object.assign(S, extra || {}); S.view = view; render();
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
-const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', contrato: 'contrato', clausula: 'contrato' })[v];
+const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
 const hoursLeft = c => Math.max(0, Math.ceil((ts(c.closes_at) - now()) / 36e5));
 
 function header(opts) {
@@ -149,6 +150,7 @@ function nav() {
   return `<nav class="nav" aria-label="Principal">
    <button data-act="tab" data-v="estado" ${t === 'estado' ? 'aria-current="page"' : ''}>${n}${I.clock}Estado</button>
    <button data-act="tab" data-v="junta" ${t === 'junta' ? 'aria-current="page"' : ''}>${j}${I.hall}Junta</button>
+   <button data-act="tab" data-v="jugadores" ${t === 'jugadores' ? 'aria-current="page"' : ''}>${I.people}Jugadores</button>
    <button data-act="tab" data-v="contrato" ${t === 'contrato' ? 'aria-current="page"' : ''}>${I.doc}Contrato</button></nav>`;
 }
 function thumbs(media, removable, group) {
@@ -330,6 +332,15 @@ function vCaso() {
     </div></section></main>${nav()}` };
 }
 
+function vJugadores() {
+  const rows = S.players.map(p => `<li><span class="av" aria-hidden="true">${esc(p.name[0])}</span><span class="nm">${esc(p.name)}</span>${p.me ? '<span class="pill">Tú</span>' : ''}</li>`).join('');
+  return { html: `${header()}<main class="main"><section class="screen pad fade">
+    <h1>Jugadores</h1>
+    <p class="lede">${S.players.length} ${S.players.length === 1 ? 'jugador' : 'jugadores'} en esta edición. Quién la lleva solo lo sabe quien la lleva.</p>
+    <ol class="card plist">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
+  </section></main>${nav()}` };
+}
+
 function vContrato() {
   const items = CONTRACT.map((c, i) => `<li><button data-act="open-clause" data-i="${i}"><span class="n ${c.k.length > 1 || c.k === 'I' ? 's' : ''}">${c.k}</span><span class="t"><b>${esc(c.title)}</b><span>${esc(c.short)}</span></span>${I.right}</button></li>`).join('');
   const p = player();
@@ -483,7 +494,7 @@ function sheetHtml() {
 }
 
 /* ---------- render ---------- */
-const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
+const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
   const keep = [...app.querySelectorAll('.toast,.push-note')];
@@ -562,6 +573,7 @@ async function poll() {
     if (S.view === 'estado' && !S.reveal) render();
     else if (S.view === 'espera' && player() && player().status === 'admitted' && !player().next_edition) { go('estado'); toast('La Junta te ha aceptado. Ya eres jugador.'); }
     else if (['espera', 'junta'].includes(S.view)) { if (S.view === 'junta') await loadCases(); render(); }
+    else if (S.view === 'jugadores') { S.players = await rpc('list_players'); render(); }
     else if (['contrato'].includes(S.view)) render();
   } catch (_) { /* sin red: se reintenta */ }
 }
@@ -729,7 +741,7 @@ app.addEventListener('click', async e => {
   const a = b.dataset.act;
   try {
     switch (a) {
-      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } go(b.dataset.v); break;
+      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { S.players = await rpc('list_players'); } go(b.dataset.v); break;
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;

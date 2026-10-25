@@ -441,3 +441,13 @@ test('aceptado después del cierre: entra en la edición siguiente', async () =>
   assert.equal(me.holds, undefined);
   await g.close();
 });
+
+test('lista de jugadores: solo nombres de admitidos, sin estado', async () => {
+  const { g, P } = await partida(4);
+  await sortea(g, P, 'Gonzalo');
+  const l = await g.rpc(P.Aina, 'list_players');
+  assert.deepEqual(l.map(x => x.name), ['Aina', 'Gonzalo', 'Juanito', 'Lola']);
+  assert.deepEqual(l.filter(x => x.me).map(x => x.name), ['Aina']);
+  assert.deepEqual(Object.keys(l[0]).sort(), ['me', 'name']);
+  await g.close();
+});

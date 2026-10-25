@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-const MIG = path.resolve(import.meta.dirname, '../supabase/migrations/0001_core.sql');
+const MIGS = ['0001_core.sql', '0004_players_list.sql'].map(f => path.resolve(import.meta.dirname, '../supabase/migrations/' + f));
 const PORT = 54329;
 let server, dir, base, counter = 0;
 
@@ -35,7 +35,7 @@ export async function startServer() {
   await c.end();
   base = await client('base');
   await base.query(STUBS);
-  await base.query(fs.readFileSync(MIG, 'utf8'));
+  for (const m of MIGS) await base.query(fs.readFileSync(m, 'utf8'));
   await base.end();
 }
 
