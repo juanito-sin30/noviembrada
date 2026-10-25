@@ -13,22 +13,30 @@ Deno.serve(async (req) => {
   const t = await sb.rpc('tick');
   if (t.error) console.error('tick', t.error.message);
 
-  const { data: rows, error } = await sb.from('outbox').select('id, player_id').is('sent_at', null).order('id').limit(500);
+  const { data: rows, error } = await sb.from('outbox').select('id, player_id, kind').is('sent_at', null).order('id').limit(500);
   if (error) return new Response(error.message, { status: 500 });
   if (!rows?.length) return Response.json({ sent: 0 });
 
-  const players = [...new Set(rows.map((r) => r.player_id))];
+  const WELCOME = JSON.stringify({ title: 'NOVIEMBRADA', body: 'Bienvenido a la Noviembrada pibes ETSEIB' });
+  const kinds = new Map<string, Set<string>>();
+  for (const r of rows) { if (!kinds.has(r.player_id)) kinds.set(r.player_id, new Set()); kinds.get(r.player_id)!.add(r.kind); }
+  const players = [...kinds.keys()];
   const { data: subs } = await sb.from('push_subscriptions').select('id, player_id, endpoint, p256dh, auth').in('player_id', players);
 
   let sent = 0, dead: number[] = [];
-  await Promise.all((subs ?? []).map(async (s) => {
+  const push = async (s: { id: number; endpoint: string; p256dh: string; auth: string }, payload: string) => {
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, '{}', { TTL: 3600, urgency: 'high' });
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 3600, urgency: 'high' });
       sent++;
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode;
       if (code === 404 || code === 410) dead.push(s.id); else console.error('push', code);
     }
+  };
+  await Promise.all((subs ?? []).map(async (s) => {
+    const k = kinds.get(s.player_id)!;
+    if (k.has('welcome')) await push(s, WELCOME);              // bienvenida: único texto no genérico
+    if ([...k].some((x) => x !== 'welcome')) await push(s, '{}'); // el resto: siempre «Tienes un aviso.»
   }));
   if (dead.length) await sb.from('push_subscriptions').delete().in('id', dead);
   await sb.from('outbox').update({ sent_at: new Date().toISOString() }).in('id', rows.map((r) => r.id));
