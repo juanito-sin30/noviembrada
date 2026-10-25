@@ -1,0 +1,28 @@
+-- El ranking solo se publica cuando acaba el juego: antes delataría a quien la lleva.
+create or replace function public.ranking() returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as
+$$
+declare v uuid := public.me_active(); cfg public.game_config; res jsonb;
+begin
+  select * into cfg from public.game_config where id = 1;
+  if public.app_now() <= cfg.end_at then raise exception 'not_finished'; end if;
+  with ch as (
+    select t.to_id, t.touched_at as s,
+           lead(t.touched_at) over (order by t.touched_at, t.id) as e
+      from public.valid_chain() t
+  ), spans as (
+    select to_id, extract(epoch from coalesce(e, greatest(cfg.end_at, s)) - s)::bigint as secs from ch
+  ), tot as (
+    select p.id, p.name, coalesce(sum(sp.secs), 0)::bigint as secs
+      from public.players p
+      left join spans sp on sp.to_id = p.id
+     where (p.status = 'admitted' and p.edition = cfg.edition) or sp.to_id is not null
+     group by p.id, p.name
+  )
+  select coalesce(jsonb_agg(jsonb_build_object('name', name, 'secs', secs, 'me', id = v, 'pos', pos)
+                            order by secs, lower(name)), '[]'::jsonb)
+    into res
+    from (select id, name, secs, rank() over (order by secs) as pos from tot) x;
+  return res;
+end
+$$;

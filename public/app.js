@@ -133,7 +133,7 @@ function go(view, extra) {
   Object.assign(S, extra || {}); S.view = view; render();
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
-const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', ranking: 'ranking', contrato: 'contrato', clausula: 'contrato' })[v];
+const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
 const hoursLeft = c => Math.max(0, Math.ceil((ts(c.closes_at) - now()) / 36e5));
 
 function header(opts) {
@@ -151,7 +151,6 @@ function nav() {
    <button data-act="tab" data-v="estado" ${t === 'estado' ? 'aria-current="page"' : ''}>${n}${I.clock}Estado</button>
    <button data-act="tab" data-v="junta" ${t === 'junta' ? 'aria-current="page"' : ''}>${j}${I.hall}Junta</button>
    <button data-act="tab" data-v="jugadores" ${t === 'jugadores' ? 'aria-current="page"' : ''}>${I.people}Jugadores</button>
-   <button data-act="tab" data-v="ranking" ${t === 'ranking' ? 'aria-current="page"' : ''}>${I.rank}Ranking</button>
    <button data-act="tab" data-v="contrato" ${t === 'contrato' ? 'aria-current="page"' : ''}>${I.doc}Contrato</button></nav>`;
 }
 function thumbs(media, removable, group) {
@@ -338,22 +337,20 @@ function vCaso() {
 }
 
 const hms = secs => { const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60); return d ? `${d} d ${h} h ${pad2(m)} min` : h ? `${h} h ${pad2(m)} min` : `${m} min`; };
-function vRanking() {
-  const rk = S.ranking || [];
-  const rows = rk.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}${p.me ? ' <span class="pill">Tú</span>' : ''}</span><span class="tm">${p.secs ? hms(p.secs) : '—'}</span></li>`).join('');
-  return { html: `${header()}<main class="main"><section class="screen pad fade">
-    <h1>Ranking</h1>
-    <p class="lede">Tiempo total que cada jugador la ha llevado. Cuanto menos, mejor. Solo cuentan los tramos ya terminados: el de quien la lleva ahora no se ve hasta el final.</p>
-    <ol class="card plist rank">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
-  </section></main>${nav()}` };
+async function loadPlayers() {
+  S.players = await rpc('list_players');
+  S.ranking = finished() ? await rpc('ranking') : null;
 }
-
 function vJugadores() {
   const rows = S.players.map(p => `<li><span class="av" aria-hidden="true">${esc(p.name[0])}</span><span class="nm">${esc(p.name)}</span>${p.me ? '<span class="pill">Tú</span>' : ''}</li>`).join('');
   return { html: `${header()}<main class="main"><section class="screen pad fade">
     <h1>Jugadores</h1>
     <p class="lede">${S.players.length} ${S.players.length === 1 ? 'jugador' : 'jugadores'} en esta edición. Quién la lleva solo lo sabe quien la lleva.</p>
     <ol class="card plist">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
+    <h2 class="sp-24" style="font-size:22px;margin-bottom:0">Ranking</h2>
+    ${S.ranking ? `<p class="lede">Tiempo total que cada jugador la ha llevado. Cuanto menos, mejor.</p>
+    <ol class="card plist rank">${S.ranking.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}${p.me ? ' <span class="pill">Tú</span>' : ''}</span><span class="tm">${p.secs ? hms(p.secs) : '—'}</span></li>`).join('')}</ol>`
+      : `<p class="lede">Se publica al acabar el mes: ordena a los jugadores por el tiempo que la han llevado, de menos a más. Antes no se enseña para que no se pueda deducir quién la lleva.</p>`}
   </section></main>${nav()}` };
 }
 
@@ -510,7 +507,7 @@ function sheetHtml() {
 }
 
 /* ---------- render ---------- */
-const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, ranking: vRanking, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
+const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
   const keep = [...app.querySelectorAll('.toast,.push-note')];
@@ -589,8 +586,7 @@ async function poll() {
     if (S.view === 'estado' && !S.reveal) render();
     else if (S.view === 'espera' && player() && player().status === 'admitted' && !player().next_edition) { go('estado'); toast('La Junta te ha aceptado. Ya eres jugador.'); }
     else if (['espera', 'junta'].includes(S.view)) { if (S.view === 'junta') await loadCases(); render(); }
-    else if (S.view === 'jugadores') { S.players = await rpc('list_players'); render(); }
-    else if (S.view === 'ranking') { S.ranking = await rpc('ranking'); render(); }
+    else if (S.view === 'jugadores') { await loadPlayers(); render(); }
     else if (['contrato'].includes(S.view)) render();
   } catch (_) { /* sin red: se reintenta */ }
 }
@@ -758,7 +754,7 @@ app.addEventListener('click', async e => {
   const a = b.dataset.act;
   try {
     switch (a) {
-      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { S.players = await rpc('list_players'); } if (b.dataset.v === 'ranking') { S.ranking = await rpc('ranking'); } go(b.dataset.v); break;
+      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { await loadPlayers(); } go(b.dataset.v); break;
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;
