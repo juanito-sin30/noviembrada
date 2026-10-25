@@ -464,3 +464,16 @@ test('solicitud de ingreso: aviso con el nombre a todos los jugadores admitidos 
   assert.ok(!rows.some(r => r.player_id === d.id), 'el aspirante no recibe su propio aviso');
   await g.close();
 });
+
+test('avisos sin duplicados: dos reclamos simultáneos no recogen la misma fila', async () => {
+  const g = await freshDb();
+  const a = await g.join('Aina');
+  await g.sql('delete from outbox');
+  for (let i = 0; i < 5; i++) await g.sql(`insert into outbox (player_id, kind) values ($1, 'touch')`, [a.id]);
+  const [x, y] = await Promise.all([g.sql('select * from public.claim_outbox(10)'), g.sql('select * from public.claim_outbox(10)')]);
+  const ids = [...x.rows, ...y.rows].map(r => r.id);
+  assert.equal(ids.length, 5);
+  assert.equal(new Set(ids).size, 5, 'ninguna fila reclamada dos veces');
+  assert.equal((await g.sql('select * from public.claim_outbox(10)')).rows.length, 0);
+  await g.close();
+});

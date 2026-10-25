@@ -5,12 +5,12 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-const MIGS = ['0001_core.sql', '0004_players_list.sql', '0006_join_notice.sql'].map(f => path.resolve(import.meta.dirname, '../supabase/migrations/' + f));
+const MIGS = ['0001_core.sql', '0004_players_list.sql', '0006_join_notice.sql', '0007_claim_outbox.sql'].map(f => path.resolve(import.meta.dirname, '../supabase/migrations/' + f));
 const PORT = 54329;
 let server, dir, base, counter = 0;
 
 const STUBS = `
-  create role anon nologin; create role authenticated nologin;
+  create role anon nologin; create role authenticated nologin; create role service_role nologin;
   create schema auth; create schema extensions;
   create table auth.users (id uuid primary key, email text unique);
   create function auth.uid() returns uuid language sql stable as

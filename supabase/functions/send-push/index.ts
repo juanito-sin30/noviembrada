@@ -13,7 +13,8 @@ Deno.serve(async (req) => {
   const t = await sb.rpc('tick');
   if (t.error) console.error('tick', t.error.message);
 
-  const { data: rows, error } = await sb.from('outbox').select('id, player_id, kind, body, tag').is('sent_at', null).order('id').limit(500);
+  // Reclamo atómico: cada aviso lo recoge una sola ejecución, aunque haya varias a la vez.
+  const { data: rows, error } = await sb.rpc('claim_outbox', { p_limit: 500 });
   if (error) return new Response(error.message, { status: 500 });
   if (!rows?.length) return Response.json({ sent: 0 });
 
@@ -21,7 +22,7 @@ Deno.serve(async (req) => {
   // Por jugador: avisos con texto propio (bienvenida, solicitudes de ingreso) y, si hay más, uno genérico.
   type Msg = { title: string; body: string; tag: string };
   const per = new Map<string, { msgs: Map<string, Msg>; generic: boolean }>();
-  for (const r of rows) {
+  for (const r of rows as { player_id: string; kind: string; body: string | null; tag: string | null }[]) {
     const e = per.get(r.player_id) ?? { msgs: new Map<string, Msg>(), generic: false };
     per.set(r.player_id, e);
     if (r.kind === 'welcome') e.msgs.set('welcome', WELCOME);
@@ -46,6 +47,5 @@ Deno.serve(async (req) => {
     if (e.generic) await push(s, '{}');            // el resto: siempre «Tienes un aviso.»
   }));
   if (dead.length) await sb.from('push_subscriptions').delete().in('id', dead);
-  await sb.from('outbox').update({ sent_at: new Date().toISOString() }).in('id', rows.map((r) => r.id));
   return Response.json({ sent, queued: rows.length });
 });
