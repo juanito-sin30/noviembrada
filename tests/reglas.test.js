@@ -24,7 +24,7 @@ async function sortea(g, P, quien) {
   await g.sql(`update touches set to_id = $1 where from_id is null`, [P[quien].id]);
 }
 const holds = async (g, p) => (await g.rpc(p, 'me')).holds;
-const toca = (g, de, a, ago = 0, lugar = '') => g.rpc(de, 'register_touch', a.id, ago, lugar);
+const toca = (g, de, a, ago = 0, lugar = 'Calle') => g.rpc(de, 'register_touch', a.id, ago, lugar);
 
 test('los 3 primeros son fundadores; el cuarto abre un caso de admisión', async () => {
   const g = await freshDb();
@@ -238,7 +238,7 @@ test('voto anónimo: ninguna tabla relaciona jugador y voto', async () => {
   await g.rpc(P.Juanito, 'cast_vote', cid, 'nulo');
   await g.rpc(P.Lola, 'cast_vote', cid, 'valido');
   const cols = (await g.sql(`select column_name from information_schema.columns where table_name='case_votes'`)).rows.map(r => r.column_name).sort();
-  assert.deepEqual(cols, ['case_id', 'choice'], 'case_votes no lleva jugador, hora ni id');
+  assert.deepEqual(cols, ['case_id', 'choice', 'th'], 'case_votes no lleva jugador, hora ni id; solo el hash de un testigo que guarda el móvil');
   const voted = (await g.sql('select count(*)::int n from case_voted where case_id=$1', [cid])).rows[0].n;
   assert.equal(voted, 2);
   const c = await g.rpc(P.Juanito, 'get_case', cid);
@@ -578,5 +578,86 @@ test('segunda edición: la lleva el perdedor anterior sin sorteo y la cadena ant
   assert.ok(por.Aina.total > 0 && por.Gonzalo.total > 0);
   assert.equal(por.Juanito.total, 0); assert.equal(por.Aina.editions, 1);
   assert.equal(r[0].total, 0);
+  await g.close();
+});
+
+test('votos cambiables con testigo secreto; sin testigo no se puede cambiar; margen de 1 h al votar todos', async () => {
+  const { g, P } = await partida(4);
+  g.grace = true;
+  await sortea(g, P, 'Gonzalo');
+  const id = await toca(g, P.Gonzalo, P.Aina);
+  const cid = await g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45));
+  const tok = 'a'.repeat(32), tok2 = 'b'.repeat(32);
+  await g.rpc(P.Juanito, 'cast_vote', cid, 'valido', tok);
+  await g.rpc(P.Juanito, 'cast_vote', cid, 'nulo', tok);               // cambia de opinión
+  await rejects(g.rpc(P.Juanito, 'cast_vote', cid, 'valido', tok2), 'already_voted');
+  await rejects(g.rpc(P.Juanito, 'cast_vote', cid, 'valido'), 'already_voted');
+  assert.deepEqual((await g.sql('select choice from case_votes where case_id=$1', [cid])).rows.map(r => r.choice), ['nulo']);
+  assert.equal((await g.sql('select count(*)::int n from case_voted where case_id=$1', [cid])).rows[0].n, 1);
+  await g.rpc(P.Lola, 'cast_vote', cid, 'valido', tok2);               // votan todos (Juanito y Lola)
+  const c = (await g.sql('select status, closes_at - app_now() as resto from cases where id=$1', [cid])).rows[0];
+  assert.equal(c.status, 'open', 'no se cierra al instante');
+  assert.ok(c.resto.hours === 0 || c.resto.minutes <= 60 || c.resto.hours <= 1, 'queda como mucho 1 h');
+  await g.rpc(P.Lola, 'cast_vote', cid, 'nulo', tok2);                 // aún puede cambiar dentro del margen
+  await g.sql(`update game_config set clock_offset = interval '2 hours'`);
+  await g.rpc(P.Juanito, 'heartbeat');
+  assert.equal((await g.sql('select status from touches where id=$1', [id])).rows[0].status, 'void', 'ganó «nulo» 2-0 tras cambiar el voto');
+  await rejects(g.rpc(P.Juanito, 'cast_vote', cid, 'valido', tok), 'not_found');
+  await g.close();
+});
+
+test('lugar obligatorio, privado: solo tocador y tocado lo ven; Mis pilladas', async () => {
+  const { g, P } = await partida(4);
+  await sortea(g, P, 'Gonzalo');
+  await rejects(g.rpc(P.Gonzalo, 'register_touch', P.Aina.id, 0, '  '), 'place_required');
+  const id = await toca(g, P.Gonzalo, P.Aina, 0, 'Plaça Catalunya');
+  const mis = await g.rpc(P.Gonzalo, 'my_touches');
+  assert.equal(mis.length, 1); assert.equal(mis[0].place, 'Plaça Catalunya'); assert.equal(mis[0].role, 'from'); assert.equal(mis[0].other, 'Aina');
+  assert.equal((await g.rpc(P.Aina, 'my_touches'))[0].role, 'to');
+  assert.equal((await g.rpc(P.Juanito, 'my_touches')).length, 0, 'un tercero no ve nada');
+  // fin de la edición: el informe público no lleva lugar
+  await g.sql(`update game_config set end_at = now() - interval '1 minute'`);
+  await g.sql(`update touches set touched_at = now() - interval '2 hours'`);
+  const f = await g.rpc(P.Juanito, 'edition_report', 1);
+  assert.ok(f.chain.every(e => !('place' in e)), 'el informe no incluye lugares');
+  assert.ok(!JSON.stringify(await g.rpc(P.Juanito, 'final_result')).includes('Catalunya'));
+  // la Junta sí lo ve en la disputa
+  await g.sql(`update game_config set end_at = now() + interval '30 days'`);
+  const cid = await g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45));
+  assert.equal((await g.rpc(P.Juanito, 'get_case', cid)).touch_place, 'Plaça Catalunya');
+  await g.close();
+});
+
+test('tregua: se vota (un «no» la anula), y bloquea pillar en ese sitio y esas horas', async () => {
+  const { g, P } = await partida(5);
+  await sortea(g, P, 'Gonzalo');
+  const ini = new Date(Date.now() + 3 * 3600e3), fin = new Date(Date.now() + 6 * 3600e3);
+  await rejects(g.rpc(P.Lola, 'propose_truce', 'Cantina ETSEIB', new Date(Date.now() + 3600e3), fin, ''), 'bad_dates');
+  await rejects(g.rpc(P.Lola, 'propose_truce', 'x', ini, fin, ''), 'text_length');
+  const cid = await g.rpc(P.Lola, 'propose_truce', 'Cantina ETSEIB', ini, fin, 'Cena de grupo');
+  const c = await g.rpc(P.Juanito, 'get_case', cid);
+  assert.equal(c.kind, 'truce'); assert.equal(c.truce_place, 'Cantina ETSEIB');
+  await rejects(g.rpc(P.Lola, 'cast_vote', cid, 'si'), 'party_cannot_vote');
+  assert.equal((await g.sql(`select count(*)::int n from outbox where kind='vote'`)).rows[0].n >= 4, true);
+  for (const n of ['Aina', 'Gonzalo', 'Juanito']) await g.rpc(P[n], 'cast_vote', cid, 'si');
+  await g.rpc(P.Marta, 'cast_vote', cid, 'no');                           // un solo «no»
+  await g.sql(`update cases set closes_at = app_now() - interval '1 second'`); await g.sql('select tick()');
+  assert.equal((await g.sql('select outcome from cases where id=$1', [cid])).rows[0].outcome, 'no');
+  assert.equal((await g.rpc(P.Aina, 'list_truces')).length, 0);
+
+  // segunda propuesta, aprobada por todos (nadie en contra)
+  const cid2 = await g.rpc(P.Lola, 'propose_truce', 'Cantina ETSEIB', ini, fin, '');
+  for (const n of ['Aina', 'Gonzalo', 'Juanito', 'Marta']) await g.rpc(P[n], 'cast_vote', cid2, 'si');
+  assert.equal((await g.sql('select outcome from cases where id=$1', [cid2])).rows[0].outcome, 'si');
+  const tr = await g.rpc(P.Aina, 'list_truces');
+  assert.equal(tr.length, 1); assert.equal(tr[0].place, 'Cantina ETSEIB');
+  // dentro de la ventana y en ese sitio: no vale; en otro sitio o fuera de hora, sí
+  await g.sql(`update game_config set clock_offset = interval '4 hours'`);
+  await rejects(toca(g, P.Gonzalo, P.Juanito, 0, 'cantina etseib'), 'truce');
+  await rejects(toca(g, P.Gonzalo, P.Juanito, 0, 'Cantina'), 'truce');
+  const ok = await toca(g, P.Gonzalo, P.Juanito, 0, 'Metro');
+  assert.ok(ok);
+  await g.sql(`update game_config set clock_offset = interval '7 hours'`);
+  assert.ok(await toca(g, P.Juanito, P.Aina, 0, 'Cantina ETSEIB'), 'terminada la tregua vuelve a valer');
   await g.close();
 });

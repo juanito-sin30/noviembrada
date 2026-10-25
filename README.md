@@ -38,6 +38,14 @@ en el **Historial** (Jugadores → Historial), suma la edición al **ranking acu
 (1–30 nov del año siguiente, con arranque automático a las 00:00 y la lleva el perdedor). Los jugadores admitidos pasan solos a la nueva edición.
 Si hay disputas, espera a que se resuelvan (como máximo el 7 dic). No actúa en modo de prueba.
 
+## Lugar, votos y treguas
+- Al registrar un pillado el **lugar es obligatorio** y es privado: solo lo ven tocador y tocado (Jugadores → Mis pilladas) y la Junta si hay disputa. No sale en el informe.
+- Los **votos se pueden cambiar** mientras el caso esté abierto. Siguen siendo anónimos: el móvil guarda un testigo secreto y el servidor solo guarda su hash junto al voto.
+  Si cambias de móvil o borras los datos, ya no podrás cambiar ese voto. Cuando han votado todos, el caso se cierra una hora después.
+- **Treguas** (Junta → Propuesta → Una tregua): sitio y horas; votan todos menos quien la propone; un solo «no» la anula. Si se aprueba,
+  el servidor rechaza pillados cuya hora caiga en la ventana y cuyo lugar coincida con el sitio de la tregua (comparación sin acentos ni mayúsculas;
+  si alguien escribe otro nombre para el mismo sitio, se resuelve con una disputa en la Junta).
+
 ## Avisos de pillado
 Al tocado le llega «Te han pillado. Ya la llevas…». A todos (incluidos tocador y tocado) les llega el anónimo «Ha habido un pillado».
 Así nadie se delata por recibir o no el aviso.

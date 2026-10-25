@@ -55,6 +55,9 @@ const ERRORS = {
   checks_required: 'Marca las tres casillas.',
   already_requested: 'Ya has enviado tu solicitud.',
   not_finished: 'La partida aún no ha terminado.',
+  place_required: 'Indica dónde ha sido el toque.',
+  truce: 'Hay una tregua en ese sitio y a esa hora: el toque no vale.',
+  bad_dates: 'Fechas no válidas: la tregua debe empezar dentro de al menos 2 horas, acabar después y dentro del juego.',
   not_enough_players: 'Hacen falta al menos dos jugadores admitidos.',
   not_test_mode: 'Solo en modo de prueba.',
   'User already registered': 'Ya hay alguien con ese nombre. Añade tu apellido o un apodo.',
@@ -95,13 +98,14 @@ const fresh = {
   sol: () => ({ name: '', pass: '', checks: [false, false, false], err: '', busy: false }),
   login: () => ({ name: '', pass: '', err: '', busy: false }),
   version: () => ({ text: '', err: '', busy: false }),
-  reforma: () => ({ q: '', body: '', err: '', busy: false })
+  reforma: () => ({ q: '', body: '', err: '', busy: false }),
+  tregua: () => ({ place: '', start: '', end: '', note: '', err: '', busy: false })
 };
 const S = {
   me: null, view: 'cargando', reveal: false, targets: [], cases: [], detail: null, caseId: null, pick: null,
   final: null, players: [], clauseIdx: 1, replayKey: 0,
   tocar: fresh.tocar(), disputa: fresh.disputa(), sol: fresh.sol(), login: fresh.login(),
-  version: fresh.version(), reforma: fresh.reforma(), sheet: false, push: 'unknown'
+  version: fresh.version(), reforma: fresh.reforma(), tregua: fresh.tregua(), truces: [], mine: [], sheet: false, push: 'unknown'
 };
 const player = () => S.me && S.me.player;
 const iHold = () => !!(S.me && S.me.holds);
@@ -135,7 +139,7 @@ function go(view, extra) {
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
 const S_tab_informe = () => (S.repFrom === 'jugadores' ? 'jugadores' : 'estado');
-const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', informe: S_tab_informe(),  junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
+const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', informe: S_tab_informe(),  junta: 'junta', caso: 'junta', reforma: 'junta', propuesta: 'junta', tregua: 'junta', mias: 'jugadores', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
 const hoursLeft = c => Math.max(0, Math.ceil((ts(c.closes_at) - now()) / 36e5));
 
 function header(opts) {
@@ -222,6 +226,11 @@ function vEstado() {
     ${lifeLine()}</section></main>${nav()}` };
 }
 
+function trucesCard() {
+  if (!S.truces.length) return '';
+  const f = t => `${fmtDay(ts(t))} ${fmtTime(ts(t))}`;
+  return `<div class="card note sp-16" style="width:100%;text-align:left"><strong>Treguas aprobadas</strong><br>${S.truces.map(t => `${esc(t.place)}: ${f(t.start)} a ${f(t.end)}`).join('<br>')}<br><span class="small">En ese sitio y esas horas no vale pillar.</span></div>`;
+}
 function vTocar() {
   const t = S.tocar;
   const rows = S.targets.map(p => `<label class="opt"><input type="radio" name="to" value="${esc(p.id)}" ${t.to === p.id ? 'checked' : ''} ${p.blocked ? 'disabled' : ''}><span class="av" aria-hidden="true">${esc(p.name[0])}</span><span style="flex:1">${esc(p.name)}</span>${p.blocked ? '<span class="pill">Regla de Tres</span>' : ''}</label>`).join('');
@@ -231,10 +240,11 @@ function vTocar() {
     <h1>¿A quién has tocado?</h1>
     <fieldset class="stack sp-16" style="border:0;margin:0;padding:0"><legend class="label" style="margin-bottom:8px">Jugador</legend>${rows}</fieldset>
     <div class="sp-20"><div class="label">¿Cuándo ha sido?</div><div class="seg">${agoBtns}</div><p class="small sp-8">Minutos. Pasados 30, el toque es nulo.</p></div>
-    <div class="sp-16"><label class="label" for="lugar">Lugar (opcional)</label><input class="field" id="lugar" name="lugar" autocomplete="off" placeholder="Por ejemplo, Plaça Catalunya" value="${esc(t.place)}"></div>
+    ${trucesCard()}
+    <div class="sp-16"><label class="label" for="lugar">¿Dónde ha sido?</label><input class="field" id="lugar" name="lugar" autocomplete="off" placeholder="Por ejemplo, Plaça Catalunya" value="${esc(t.place)}"><p class="small sp-8">Obligatorio. Solo lo veréis tú y el tocado (y la Junta si hay disputa). No sale en el informe.</p></div>
     <div class="sp-16"><div class="label">Pruebas (opcional)</div>${mediaPicker('tocar', t, `Quedan en el registro. Las verá ${who ? esc(who) : 'el tocado'} y, si hay disputa, la Junta. Al final del mes se publican para todos.`)}</div>
     ${t.err && !t.media.length ? `<p class="err" role="alert">${esc(t.err)}</p>` : ''}
-    <div class="push" style="padding-top:22px"><button class="btn ${t.busy ? 'spin' : ''}" type="submit" ${t.to && !t.busy ? '' : 'disabled'}>${t.busy ? 'Registrando…' : 'Registrar toque'}</button>
+    <div class="push" style="padding-top:22px"><button class="btn ${t.busy ? 'spin' : ''}" type="submit" data-live="tsend" ${t.to && t.place.trim().length >= 2 && !t.busy ? '' : 'disabled'}>${t.busy ? 'Registrando…' : 'Registrar toque'}</button>
     <p class="small sp-12" style="text-align:center">${t.to ? `Solo se avisará a ${esc(who || 'el tocado')}. El toque cuenta ya; ${esc(who || 'el tocado')} puede disputarlo durante 24 h.` : 'Elige a quién has tocado.'}</p></div>
   </form></main>` };
 }
@@ -273,6 +283,10 @@ function vDisputa() {
   </form></main>` };
 }
 
+const voteKey = c => `nov-vote:${c.id}:${c.round || 1}`;
+const myVote = c => { try { return JSON.parse(localStorage.getItem(voteKey(c)) || 'null'); } catch (_) { return null; } };
+const saveVote = (c, t, choice) => { try { localStorage.setItem(voteKey(c), JSON.stringify({ t, c: choice })); } catch (_) { } };
+const newToken = () => { try { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a, x => x.toString(16).padStart(2, '0')).join(''); } catch (_) { return String(Math.random()).slice(2) + String(Date.now()) + String(Math.random()).slice(2); } };
 const KIND_TEXT = { dispute: 'Disputa de un toque.', admission: 'Solicitud para entrar.', reform: 'Propuesta de reforma.', truce: 'Propuesta de tregua.' };
 function vJunta() {
   const cards = S.cases.map(c => {
@@ -284,8 +298,34 @@ function vJunta() {
     <h1>Junta de Sabios</h1>
     <p class="lede">La forman todos los jugadores. Voto anónimo y mayoría simple. Quien es parte en un caso no vota.</p>
     <div class="stack sp-20" style="gap:10px">${cards || '<div class="card note">No hay casos abiertos.</div>'}</div>
-    <div class="push" style="padding-top:18px"><button class="btn line" data-act="go-reforma">Proponer una reforma</button></div>
+    ${S.truces.length ? `<div class="card note sp-16" style="width:100%;text-align:left"><strong>Treguas aprobadas</strong><br>${S.truces.map(t => `${esc(t.place)}: ${fmtDay(ts(t.start))} ${fmtTime(ts(t.start))} a ${fmtDay(ts(t.end))} ${fmtTime(ts(t.end))}`).join('<br>')}</div>` : ''}
+    <div class="push" style="padding-top:18px"><button class="btn line" data-act="go-propuesta">Propuesta</button></div>
   </section></main>${nav()}` };
+}
+
+function vPropuesta() {
+  return { html: `${header({ cancel: 'tab-junta', hideDay: true })}<main class="main"><section class="screen pad fade">
+    <h1>¿Qué propones?</h1>
+    <p class="lede">La Junta lo votará de forma anónima.</p>
+    <div class="stack sp-20" style="gap:10px">
+      <button class="case" data-act="go-reforma"><h2>Una reforma</h2><p>Cambiar o aclarar una regla. Se aprueba por mayoría simple.</p></button>
+      <button class="case" data-act="go-tregua"><h2>Una tregua</h2><p>Un sitio y unas horas en los que no vale pillar. Un solo voto en contra la anula.</p></button>
+    </div></section></main>${nav()}` };
+}
+
+function vTregua() {
+  const r = S.tregua;
+  return { html: `${header({ cancel: 'tab-junta', hideDay: true })}<main class="main"><form class="screen pad fade" id="f-tregua" novalidate>
+    <h1>Proponer una tregua.</h1>
+    <p class="lede">Votan todos menos tú. Un solo voto en contra la anula. En ese sitio y esas horas no valdrá pillar a nadie.</p>
+    <div class="sp-20"><label class="label" for="t-place">Sitio</label><input class="field" id="t-place" maxlength="120" placeholder="Cantina de la ETSEIB" value="${esc(r.place)}"></div>
+    <div class="sp-16"><label class="label" for="t-start">Desde</label><input class="field" id="t-start" type="datetime-local" value="${esc(r.start)}"></div>
+    <div class="sp-16"><label class="label" for="t-end">Hasta</label><input class="field" id="t-end" type="datetime-local" value="${esc(r.end)}"></div>
+    <div class="sp-16"><label class="label" for="t-note">Motivo (opcional)</label><textarea class="field" id="t-note" maxlength="300" placeholder="Cena de grupo, examen, boda…">${esc(r.note)}</textarea></div>
+    <p class="small sp-8">Tiene que empezar dentro de al menos 2 horas. La votación dura como mucho 12 h y se cierra 1 h antes de que empiece.</p>
+    ${r.err ? `<p class="err" role="alert">${esc(r.err)}</p>` : ''}
+    <div class="push" style="padding-top:20px"><button class="btn ${r.busy ? 'spin' : ''}" type="submit" ${r.busy ? 'disabled' : ''}>Enviar a la Junta</button></div>
+  </form></main>` };
 }
 
 function vReforma() {
@@ -302,7 +342,7 @@ function vReforma() {
 
 function vCaso() {
   const c = S.detail; if (!c) return vJunta();
-  const party = c.party, canVote = !party && !c.i_voted && c.status === 'open';
+  const party = c.party, mv = myVote(c), canVote = !party && c.status === 'open' && (!c.i_voted || !!mv);
   const opts = (c.kind === 'dispute'
     ? [{ id: 'valido', t: 'Toque válido', d: 'Se mantiene.' }, { id: 'nulo', t: 'Toque nulo', d: 'El estatus vuelve a quien tocó.' }, { id: 'abs', t: 'Abstenerme', d: '' }]
     : c.kind === 'admission'
@@ -327,14 +367,16 @@ function vCaso() {
     <div class="case meta" style="display:flex;gap:8px;align-items:center;border:0;background:none;padding:0"><span class="pill dark">Caso ${c.id}</span><span class="small" style="font-weight:600">${c.status === 'closed' ? 'Cerrado' : 'Cierra en ' + hoursLeft(c) + ' h'}</span></div>
     <h1 class="sp-12" style="font-size:28px">${esc(c.question)}</h1>
     ${c.parties.length ? `<div class="life" style="color:var(--gold);font-weight:600">${I.info}${esc(c.parties.join(' y '))} no votan en este caso.</div>` : ''}
+    ${c.touch_place ? `<div class="card note sp-16" style="width:100%;text-align:left">Lugar del toque: <strong>${esc(c.touch_place)}</strong></div>` : ''}
     <div class="stack sp-16">${versions}</div>
     ${c.verdict ? `<div class="verdict sp-16"><div class="eyebrow">Veredicto</div><p>${esc(c.verdict)}</p></div>` : ''}
     <fieldset class="stack sp-16" style="border:0;margin:0;padding:0"><legend class="label" style="margin-bottom:8px">${party ? 'Eres parte: no votas' : 'Tu voto'}</legend>${opts}</fieldset>
     <div class="sp-16"><div class="row"><span style="color:var(--muted)">Han votado</span><strong style="font-variant-numeric:tabular-nums">${c.voted} de ${c.voters}</strong></div><div class="bar ink"><i style="width:${pct}%"></i></div>
-      <p class="small sp-8">${c.round > 1 ? 'Segunda votación por empate. ' : ''}Gana la mayoría simple de los votos emitidos. Si hay empate, se repite una vez.</p></div>
+      <p class="small sp-8">${c.round > 1 ? 'Segunda votación por empate. ' : ''}${c.kind === 'truce' ? 'Basta un voto en contra para anular la tregua.' : 'Gana la mayoría simple de los votos emitidos. Si hay empate, se repite una vez.'}</p></div>
     <div class="push" style="padding-top:20px">
       <div class="life" style="margin:0 0 10px">${I.smallLock}Tu voto es anónimo: se guarda sin tu nombre.</div>
-      ${canVote ? `<button class="btn" data-act="vote" ${S.pick ? '' : 'disabled'}>Emitir voto</button>` : `<button class="btn" disabled>${party ? 'No votas en tu propio caso' : c.status === 'closed' ? 'Votación cerrada' : 'Voto emitido'}</button>`}
+      ${c.i_voted && !mv && c.status === 'open' ? '<p class="small" style="margin-bottom:10px">Ya has votado. Solo puedes cambiar el voto desde el móvil con el que votaste.</p>' : ''}
+      ${canVote ? `<button class="btn" data-act="vote" ${S.pick && !(mv && mv.c === S.pick) ? '' : 'disabled'}>${c.i_voted ? 'Cambiar voto' : 'Emitir voto'}</button>${c.i_voted ? '<p class="small sp-8">Puedes cambiarlo hasta que se cierre la votación.</p>' : ''}` : `<button class="btn" disabled>${party ? 'No votas en tu propio caso' : c.status === 'closed' ? 'Votación cerrada' : 'Voto emitido'}</button>`}
     </div></section></main>${nav()}` };
 }
 
@@ -344,6 +386,17 @@ async function loadPlayers() {
   try { S.ranking = await rpc('ranking'); S.editions = await rpc('list_editions'); } catch (_) { S.ranking = S.ranking || []; S.editions = S.editions || []; }
 }
 const avgTxt = secs => secs ? hms(secs) : '—';
+function vMias() {
+  const label = { confirmed: 'Confirmado', pending: 'Pendiente', disputed: 'En disputa', void: 'Anulado' };
+  const items = (S.mine || []).map(e => `<div class="card entry"><div class="head"><b>${e.role === 'from' ? 'Pillaste a ' : ''}${esc(e.other)}${e.role === 'to' ? ' te pilló' : ''}</b><span class="pill ${e.status === 'void' ? '' : 'muted'}">${label[e.status] || ''}</span></div>
+    <p>${fmtDay(ts(e.touched_at))} · ${fmtTime(ts(e.touched_at))} · <strong>${esc(e.place || 'Sin lugar')}</strong>${e.verdict ? '<br>' + esc(e.verdict) : ''}</p>${thumbs(e.media)}</div>`).join('');
+  return { html: `${header({ back: 'tab-jugadores', backLabel: 'Jugadores', hideDay: true })}<main class="main"><section class="screen pad fade">
+    <h1>Mis pilladas</h1>
+    <p class="lede">Solo las ves tú y la otra persona de cada pillada. El lugar no se publica.</p>
+    <div class="stack sp-20" style="gap:10px">${items || '<div class="card note">Aún no has pillado ni te han pillado.</div>'}</div>
+  </section></main>${nav()}` };
+}
+
 function vJugadores() {
   const rows = S.players.map(p => `<li><span class="av" aria-hidden="true">${esc(p.name[0])}</span><span class="nm">${esc(p.name)}</span>${p.me ? '<span class="pill">Tú</span>' : ''}</li>`).join('');
   const rk = S.ranking || [], eds = S.editions || [];
@@ -353,6 +406,7 @@ function vJugadores() {
     <h1>Jugadores</h1>
     <p class="lede">${S.players.length} ${S.players.length === 1 ? 'jugador' : 'jugadores'} en esta edición. Quién la lleva solo lo sabe quien la lleva.</p>
     <ol class="card plist">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
+    <ul class="card hist sp-16"><li><button class="histbtn" data-act="go-mias"><span class="t"><b>Mis pilladas</b><span>Las que he hecho y las que me han hecho, con el lugar. Privado.</span></span>${I.right}</button></li></ul>
     <h2 class="sp-24" style="font-size:22px;margin-bottom:0">Ranking</h2>
     ${rk.length ? `<p class="lede">Acumulado de todas las ediciones cerradas: tiempo medio que cada jugador la ha llevado por edición. Cuanto menos, mejor.</p><ol class="card plist rank">${rkRows}</ol>`
       : `<p class="lede">Aparecerá cuando se cierre la primera edición. Suma el tiempo que cada jugador la ha llevado en todas las ediciones y ordena por la media: cuanto menos, mejor. Durante la edición en curso no se enseña, para que no se pueda deducir quién la lleva.</p>`}
@@ -532,7 +586,7 @@ function sheetHtml() {
 }
 
 /* ---------- render ---------- */
-const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
+const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, propuesta: vPropuesta, tregua: vTregua, mias: vMias, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
   const keep = [...app.querySelectorAll('.toast,.push-note')];
@@ -548,7 +602,7 @@ function wire() {
     S.reveal = true; render(); clearTimeout(revealTimer);
     revealTimer = setTimeout(() => { if (S.view === 'estado' && S.reveal) { S.reveal = false; render(); } }, iHold() ? 15000 : 5000);
   });
-  [['f-entrar', submitEntrar], ['f-sol', submitSol], ['f-tocar', submitTocar], ['f-disputa', submitDisputa], ['f-reforma', submitReforma], ['f-version', submitVersion]]
+  [['f-tregua', submitTregua], ['f-entrar', submitEntrar], ['f-sol', submitSol], ['f-tocar', submitTocar], ['f-disputa', submitDisputa], ['f-reforma', submitReforma], ['f-version', submitVersion]]
     .forEach(([id, fn]) => { const f = document.getElementById(id); if (f) f.addEventListener('submit', fn); });
 }
 function hold(el, ms, done) {
@@ -595,7 +649,7 @@ async function refresh(initial) {
   const changed = sig !== lastSig; lastSig = sig;
   return changed;
 }
-async function loadCases() { S.cases = await rpc('list_cases'); }
+async function loadCases() { S.cases = await rpc('list_cases'); try { S.truces = await rpc('list_truces'); } catch (_) { } }
 async function loadCase(id) {
   S.detail = await rpc('get_case', { p_case: id });
   if (S.detail.versions) await signAll(S.detail.versions.flatMap(v => v.media));
@@ -677,12 +731,13 @@ async function submitSol(e) {
   }
 }
 async function openTocar() {
-  try { S.targets = await rpc('get_targets'); S.tocar = fresh.tocar(); go('tocar'); }
+  try { S.targets = await rpc('get_targets'); S.truces = await rpc('list_truces'); S.tocar = fresh.tocar(); go('tocar'); }
   catch (err) { toast(errMsg(err)); }
 }
 async function submitTocar(e) {
   e.preventDefault();
   const t = S.tocar; if (!t.to || t.busy) return;
+  if (t.place.trim().length < 2) { t.err = ERRORS.place_required; render(); return; }
   t.busy = true; t.err = ''; render();
   try {
     const tid = await rpc('register_touch', { p_to: t.to, p_ago: t.ago, p_place: t.place.trim() });
@@ -714,6 +769,17 @@ async function submitVersion(e) {
     await rpc('add_version', { p_case: S.caseId, p_text: v.text.trim() });
     S.version = fresh.version(); await loadCase(S.caseId); render(); toast('Tu versión está en el caso.');
   } catch (err) { v.busy = false; v.err = errMsg(err); render(); }
+}
+async function submitTregua(e) {
+  e.preventDefault();
+  const r = S.tregua; if (r.busy) return;
+  if (r.place.trim().length < 2 || !r.start || !r.end) { r.err = 'Indica el sitio y las dos horas.'; render(); return; }
+  r.busy = true; r.err = ''; render();
+  try {
+    const cid = await rpc('propose_truce', { p_place: r.place.trim(), p_start: new Date(r.start).toISOString(), p_end: new Date(r.end).toISOString(), p_note: r.note.trim() });
+    S.tregua = fresh.tregua(); await loadCases(); await loadCase(cid); S.caseId = cid; S.pick = null;
+    go('caso'); toast('Tregua enviada a la Junta.');
+  } catch (err) { r.busy = false; r.err = errMsg(err); render(); }
 }
 async function submitReforma(e) {
   e.preventDefault();
@@ -792,8 +858,11 @@ app.addEventListener('click', async e => {
       case 'open-aviso': document.querySelectorAll('.push-note').forEach(n => n.remove()); await refresh(); if (notice()) go('aviso'); else go('estado'); break;
       case 'go-disputa': S.disputa = fresh.disputa(); go('disputa'); break;
       case 'cancel-disputa': go('aviso'); break;
-      case 'open-case': S.pick = null; S.version = fresh.version(); S.caseId = +b.dataset.id; await loadCase(S.caseId); go('caso'); break;
-      case 'vote': if (S.pick) { await rpc('cast_vote', { p_case: S.caseId, p_choice: S.pick }); S.pick = null; await loadCase(S.caseId); await refresh(); render(); toast('Voto emitido. Nadie sabrá qué has votado.'); } break;
+      case 'open-case': S.version = fresh.version(); S.caseId = +b.dataset.id; await loadCase(S.caseId); { const mv = myVote(S.detail); S.pick = mv ? mv.c : null; } go('caso'); break;
+      case 'vote': if (S.pick) { const d = S.detail, prev = myVote(d), tok = prev ? prev.t : newToken(), choice = S.pick; await rpc('cast_vote', { p_case: S.caseId, p_choice: choice, p_token: tok }); saveVote(d, tok, choice); await loadCase(S.caseId); await refresh(); render(); toast(prev ? 'Voto cambiado.' : 'Voto emitido. Nadie sabrá qué has votado.'); } break;
+      case 'go-propuesta': go('propuesta'); break;
+      case 'go-tregua': S.tregua = fresh.tregua(); go('tregua'); break;
+      case 'go-mias': S.mine = await rpc('my_touches'); await signAll(S.mine.flatMap(e => e.media)); go('mias'); break;
       case 'go-reforma': S.reforma = fresh.reforma(); go('reforma'); break;
       case 'open-clause': go('clausula', { clauseIdx: +b.dataset.i }); break;
       case 'clause': go('clausula', { clauseIdx: Math.max(0, Math.min(CONTRACT.length - 1, S.clauseIdx + +b.dataset.d)) }); break;
@@ -834,7 +903,7 @@ app.addEventListener('change', e => {
 });
 app.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'lugar') S.tocar.place = t.value;
+  if (t.id === 'lugar') { S.tocar.place = t.value; const b = app.querySelector('[data-live="tsend"]'); if (b) b.disabled = !(S.tocar.to && t.value.trim().length >= 2 && !S.tocar.busy); }
   else if (t.id === 'relato') {
     S.disputa.text = t.value; const n = t.value.trim().length;
     const c = app.querySelector('[data-live="chars"]'); if (c) c.textContent = `${n} / 600`;
@@ -845,6 +914,10 @@ app.addEventListener('input', e => {
     const c = app.querySelector('[data-live="vchars"]'); if (c) c.textContent = `${n} / 600`;
     const s = app.querySelector('[data-live="vsend"]'); if (s) s.disabled = n < 40;
   }
+  else if (t.id === 't-place') S.tregua.place = t.value;
+  else if (t.id === 't-start') S.tregua.start = t.value;
+  else if (t.id === 't-end') S.tregua.end = t.value;
+  else if (t.id === 't-note') S.tregua.note = t.value;
   else if (t.id === 'r-q') S.reforma.q = t.value;
   else if (t.id === 'r-b') S.reforma.body = t.value;
   else if (t.id === 's-name') { S.sol.name = t.value; solLive(); }
@@ -869,7 +942,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // Actualización automática: si hay versión nueva, se instala sola y la app se recarga en un momento seguro.
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller; let updated = false;
-  const safe = () => !['tocar', 'disputa', 'reforma', 'entrar'].includes(S.view) && !S.sheet;
+  const safe = () => !['tocar', 'disputa', 'reforma', 'tregua', 'entrar'].includes(S.view) && !S.sheet;
   const reloadIfReady = () => { if (updated && safe()) location.reload(); };
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) { updated = true; reloadIfReady(); } });
   navigator.serviceWorker.register('sw.js').then(reg => {
