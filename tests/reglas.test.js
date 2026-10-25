@@ -198,20 +198,6 @@ test('el toque cuenta al registrarlo; el tocado no confirma y solo él puede dis
   await g.close();
 });
 
-test('ranking: solo se publica al acabar el juego', async () => {
-  const { g, P } = await partida(4);
-  await sortea(g, P, 'Gonzalo');
-  await toca(g, P.Gonzalo, P.Aina);
-  await rejects(g.rpc(P.Juanito, 'ranking'), 'not_finished');
-  await g.sql(`update game_config set clock_offset = interval '10 days', end_at = now() + interval '9 days'`);
-  const r = await g.rpc(P.Juanito, 'ranking');
-  const por = Object.fromEntries(r.map(x => [x.name, x.secs]));
-  assert.ok(por.Aina > 6 * 86400 && por.Gonzalo > 0);
-  assert.equal(r[0].secs, 0);
-  assert.equal(r[r.length - 1].name, 'Aina');
-  await g.close();
-});
-
 // --- Disputas y Junta -------------------------------------------------------------------------
 async function disputa(g, P, n = 7) {
   await sortea(g, P, 'Gonzalo');
@@ -399,14 +385,18 @@ test('pruebas: máximo 4 por toque; las ve quien las sube, el tocado y los votan
   await g.close();
 });
 
-test('avisos: el texto de la cola es genérico y no lleva nombres', async () => {
+test('avisos de pillado: claro al tocado, anónimo a todos (el tocado recibe ambos); sin nombres de nadie más', async () => {
   const { g, P } = await partida(4);
   await sortea(g, P, 'Gonzalo');
+  await g.sql(`delete from outbox`);
   await toca(g, P.Gonzalo, P.Aina);
-  const sinTexto = (await g.sql(`select count(*)::int n from outbox where kind not in ('join','draw') and body is not null`)).rows[0].n;
-  assert.equal(sinTexto, 0, 'solo las solicitudes de ingreso llevan texto propio');
-  const q = (await g.sql(`select kind, player_id from outbox where kind='touch'`)).rows;
-  assert.equal(q.length, 1); assert.equal(q[0].player_id, P.Aina.id);
+  const t = (await g.sql(`select player_id, body from outbox where kind='touch'`)).rows;
+  assert.equal(t.length, 1); assert.equal(t[0].player_id, P.Aina.id);
+  assert.match(t[0].body, /Te han pillado/);
+  const an = (await g.sql(`select player_id, body from outbox where kind='pillado'`)).rows;
+  assert.equal(an.length, 4, 'a todos los jugadores');
+  assert.equal(new Set(an.map(x => x.player_id)).size, 4);
+  for (const x of an) { assert.match(x.body, /Ha habido un pillado/); assert.doesNotMatch(x.body, /Gonzalo|Aina/); }
   await g.close();
 });
 
@@ -519,18 +509,61 @@ test('el sorteo automático no actúa en modo de prueba', async () => {
   await g.close();
 });
 
-test('segunda edición: empieza con el perdedor anterior, sin sorteo, y la cadena anterior no cuenta', async () => {
-  const { g, P } = await partida(4);
+// Cierra la edición 1 de forma automática: Gonzalo -> Aina, y Aina la lleva al acabar.
+async function cierraEdicion1(g, P) {
   await g.sql(`update game_config set test_mode = false`);
   await sortea(g, P, 'Gonzalo');
+  await g.sql(`update touches set touched_at = now() - interval '3 days' where from_id is null`);
+  await g.sql(`update game_config set start_at = now() - interval '3 days'`);
   await toca(g, P.Gonzalo, P.Aina);
-  await g.sql(`update game_config set end_at = now() - interval '1 minute', dispute_end_at = now() + interval '1 day'`);
-  await g.sql(`select start_new_edition(now() + interval '1 hour', now() + interval '30 days', now() + interval '37 days')`);
-  const cfg = (await g.sql('select edition, draw_done, last_loser from game_config')).rows[0];
+  await g.sql(`update touches set touched_at = now() - interval '2 hours' where from_id is not null`);
+  await g.sql(`update game_config set end_at = now() - interval '1 minute', dispute_end_at = now() + interval '6 days'`);
+}
+
+test('cierre automático: espera a que no haya toques por resolver y cierra solo', async () => {
+  const { g, P } = await partida(4);
+  await cierraEdicion1(g, P);
+  await g.rpc(P.Gonzalo, 'heartbeat');
+  assert.equal((await g.sql('select edition from game_config')).rows[0].edition, 1, 'toque pendiente: aún no');
+  await g.sql(`update game_config set clock_offset = interval '25 hours'`);
+  await g.rpc(P.Gonzalo, 'heartbeat');
+  const cfg = (await g.sql('select edition, draw_done, last_loser, start_at, extract(year from start_at at time zone \'Europe/Madrid\')::int y from game_config')).rows[0];
   assert.equal(cfg.edition, 2); assert.equal(cfg.draw_done, false); assert.equal(cfg.last_loser, P.Aina.id);
+  assert.equal(cfg.y, new Date().getFullYear() + 1);
+  const a = (await g.sql('select loser_name, report from edition_archive where edition = 1')).rows[0];
+  assert.equal(a.loser_name, 'Aina');
+  assert.equal(a.report.stats.touches, 1);
+  assert.equal(a.report.chain.length, 2);
+  assert.equal(a.report.players.length, 4);
+  const inf = (await g.sql(`select count(*)::int n, count(distinct player_id)::int j from outbox where kind='informe'`)).rows[0];
+  assert.equal(inf.n, 4); assert.equal(inf.j, 4);
+  // informe visible para un jugador, e historial
+  const rep = await g.rpc(P.Lola, 'edition_report', 1);
+  assert.equal(rep.loser, 'Aina'); assert.equal(rep.provisional, false);
+  assert.equal((await g.rpc(P.Lola, 'list_editions'))[0].loser, 'Aina');
+  assert.equal((await g.rpc(P.Lola, 'me')).last_edition, 1);
+  await g.close();
+});
+
+test('cierre automático: no cierra mientras haya una disputa abierta', async () => {
+  const { g, P } = await partida(4);
+  await sortea(g, P, 'Gonzalo');
+  await g.sql(`update game_config set test_mode = false`);
+  const id = await toca(g, P.Gonzalo, P.Aina);
+  await g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45));
+  await g.sql(`update game_config set end_at = now() - interval '1 minute', dispute_end_at = now() + interval '6 days'`);
+  await g.rpc(P.Juanito, 'heartbeat');
+  assert.equal((await g.sql('select edition from game_config')).rows[0].edition, 1);
+  await g.close();
+});
+
+test('segunda edición: la lleva el perdedor anterior sin sorteo y la cadena anterior no cuenta; ranking acumulado', async () => {
+  const { g, P } = await partida(4);
+  await cierraEdicion1(g, P);
+  await g.sql(`update game_config set clock_offset = interval '25 hours'`);
+  await g.rpc(P.Gonzalo, 'heartbeat');
   assert.equal(await holds(g, P.Aina), false);
-  // llega la hora de la edición 2
-  await g.sql(`update game_config set start_at = now() - interval '1 minute'`);
+  await g.sql(`update game_config set clock_offset = '0', start_at = now() - interval '1 minute', end_at = now() + interval '30 days'`);
   await g.rpc(P.Gonzalo, 'heartbeat');
   assert.equal(await holds(g, P.Aina), true, 'la lleva el perdedor de la edición 1');
   for (const n of ['Gonzalo', 'Juanito', 'Lola']) assert.equal(await holds(g, P[n]), false);
@@ -538,5 +571,12 @@ test('segunda edición: empieza con el perdedor anterior, sin sorteo, y la caden
   assert.match(b, /edición 2.*perdedor del año pasado/);
   await toca(g, P.Aina, P.Lola);
   assert.equal(await holds(g, P.Lola), true);
+  // ranking acumulado: solo cuenta la edición cerrada; Aina (perdedora) la última
+  const r = await g.rpc(P.Juanito, 'ranking');
+  assert.equal(r.length, 4);
+  const por = Object.fromEntries(r.map(x => [x.name, x]));
+  assert.ok(por.Aina.total > 0 && por.Gonzalo.total > 0);
+  assert.equal(por.Juanito.total, 0); assert.equal(por.Aina.editions, 1);
+  assert.equal(r[0].total, 0);
   await g.close();
 });

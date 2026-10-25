@@ -30,10 +30,17 @@ resultado secreto) y manda a todos el aviso «¡Que empiece la Noviembrada, edic
 puede tardar hasta un minuto. Hacen falta al menos 2 jugadores admitidos; si no, lo intenta cada minuto hasta que los haya.
 Reserva manual: **Admin → Hacer el sorteo ahora** (solo si el automático no se ha hecho). No se puede repetir.
 **Solo la edición 1 se sortea.** Las siguientes empiezan llevándola el perdedor de la edición anterior (si sigue jugando; si no, sorteo).
-Para preparar la edición siguiente, cuando la anterior haya terminado (y resueltas las disputas), ejecuta con `supabase db query --linked`:
-`select start_new_edition('2027-10-31 23:00:00+00', '2027-11-30 22:59:59+00', '2027-12-07 22:59:59+00');`
-Eso guarda al perdedor, sube la edición, pasa a los jugadores admitidos a la nueva y deja el arranque automático a las 00:00 del 1 nov.
-La cadena de toques de ediciones anteriores se conserva pero no cuenta.
+
+## Cierre de edición (automático)
+Cuando ha pasado el 30 de noviembre y no queda ninguna disputa abierta ni ningún toque pendiente de resolver (los toques se confirman a las 24 h),
+el servidor cierra la edición solo: guarda el informe (perdedor, tiempos, todos los pillados con sus fotos y vídeos y el resultado de las disputas)
+en el **Historial** (Jugadores → Historial), suma la edición al **ranking acumulado**, avisa a todos y prepara la siguiente
+(1–30 nov del año siguiente, con arranque automático a las 00:00 y la lleva el perdedor). Los jugadores admitidos pasan solos a la nueva edición.
+Si hay disputas, espera a que se resuelvan (como máximo el 7 dic). No actúa en modo de prueba.
+
+## Avisos de pillado
+Al tocado le llega «Te han pillado. Ya la llevas…». A todos (incluidos tocador y tocado) les llega el anónimo «Ha habido un pillado».
+Así nadie se delata por recibir o no el aviso.
 
 ## Resetear una contraseña
 Edita `supabase/admin/reset_password.sql` (nombre en minúsculas, sin acentos, con puntos: «Marta Puig» → `marta.puig`) y ejecútalo.

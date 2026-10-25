@@ -107,6 +107,7 @@ const player = () => S.me && S.me.player;
 const iHold = () => !!(S.me && S.me.holds);
 const notice = () => S.me && S.me.notice;
 const finished = () => !!(S.me && S.me.finished);
+const showLast = () => !!(S.me && S.me.last_edition && !started() && S.final);
 const isStandalone = () => window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 
@@ -133,12 +134,13 @@ function go(view, extra) {
   Object.assign(S, extra || {}); S.view = view; render();
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
-const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', registro: 'estado', junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
+const S_tab_informe = () => (S.repFrom === 'jugadores' ? 'jugadores' : 'estado');
+const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', informe: S_tab_informe(),  junta: 'junta', caso: 'junta', reforma: 'junta', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
 const hoursLeft = c => Math.max(0, Math.ceil((ts(c.closes_at) - now()) / 36e5));
 
 function header(opts) {
   opts = opts || {};
-  const right = finished() || S.view === 'final' || S.view === 'registro' ? '1 dic · 00:00' : started() ? `Día ${dayN()} de 30` : 'Antes de empezar';
+  const right = showLast() ? 'Hasta la próxima' : finished() || S.view === 'final' || S.view === 'informe' ? '1 dic · 00:00' : started() ? `Día ${dayN()} de 30` : 'Antes de empezar';
   const left = opts.back ? `<button class="back" data-act="${opts.back}">${I.left}${esc(opts.backLabel || 'Volver')}</button>`
     : opts.cancel ? `<button class="ghost" data-act="${opts.cancel}">Cancelar</button>`
     : '<span class="mark">NOVIEMBRADA</span>';
@@ -180,7 +182,7 @@ function pushPrompt() {
 }
 
 function vEstado() {
-  if (finished()) return vFinal();
+  if (finished() || showLast()) return vFinal();
   const holding = iHold(), drawn = S.me.draw_done;
   if (S.reveal && holding) {
     const from = S.me.passed_from ? `<strong style="font-weight:600">Te la pasó ${esc(S.me.passed_from)}.</strong> Regla de Tres: no puedes devolvérsela hasta que el estatus haya pasado por un tercero.` : '<strong style="font-weight:600">Te tocó en el sorteo.</strong> Puedes pasársela a cualquiera.';
@@ -339,18 +341,23 @@ function vCaso() {
 const hms = secs => { const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60); return d ? `${d} d ${h} h ${pad2(m)} min` : h ? `${h} h ${pad2(m)} min` : `${m} min`; };
 async function loadPlayers() {
   S.players = await rpc('list_players');
-  S.ranking = finished() ? await rpc('ranking') : null;
+  try { S.ranking = await rpc('ranking'); S.editions = await rpc('list_editions'); } catch (_) { S.ranking = S.ranking || []; S.editions = S.editions || []; }
 }
+const avgTxt = secs => secs ? hms(secs) : '—';
 function vJugadores() {
   const rows = S.players.map(p => `<li><span class="av" aria-hidden="true">${esc(p.name[0])}</span><span class="nm">${esc(p.name)}</span>${p.me ? '<span class="pill">Tú</span>' : ''}</li>`).join('');
+  const rk = S.ranking || [], eds = S.editions || [];
+  const rkRows = rk.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}${p.me ? ' <span class="pill">Tú</span>' : ''}${p.left ? ' <span class="small">· ya no juega</span>' : ''}<span class="sub">${p.editions} ${p.editions === 1 ? 'edición' : 'ediciones'} · total ${avgTxt(p.total)}</span></span><span class="tm">${avgTxt(p.avg)}</span></li>`).join('');
+  const hist = eds.map(e => `<li><button class="histbtn" data-act="open-hist" data-e="${e.edition}"><span class="t"><b>Edición ${e.edition} · ${e.year}</b><span>Perdedor: ${esc(e.loser)} · ${e.players} jugadores · ${e.touches} pillados</span></span>${I.right}</button></li>`).join('');
   return { html: `${header()}<main class="main"><section class="screen pad fade">
     <h1>Jugadores</h1>
     <p class="lede">${S.players.length} ${S.players.length === 1 ? 'jugador' : 'jugadores'} en esta edición. Quién la lleva solo lo sabe quien la lleva.</p>
     <ol class="card plist">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
     <h2 class="sp-24" style="font-size:22px;margin-bottom:0">Ranking</h2>
-    ${S.ranking ? `<p class="lede">Tiempo total que cada jugador la ha llevado. Cuanto menos, mejor.</p>
-    <ol class="card plist rank">${S.ranking.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}${p.me ? ' <span class="pill">Tú</span>' : ''}</span><span class="tm">${p.secs ? hms(p.secs) : '—'}</span></li>`).join('')}</ol>`
-      : `<p class="lede">Se publica al acabar el mes: ordena a los jugadores por el tiempo que la han llevado, de menos a más. Antes no se enseña para que no se pueda deducir quién la lleva.</p>`}
+    ${rk.length ? `<p class="lede">Acumulado de todas las ediciones cerradas: tiempo medio que cada jugador la ha llevado por edición. Cuanto menos, mejor.</p><ol class="card plist rank">${rkRows}</ol>`
+      : `<p class="lede">Aparecerá cuando se cierre la primera edición. Suma el tiempo que cada jugador la ha llevado en todas las ediciones y ordena por la media: cuanto menos, mejor. Durante la edición en curso no se enseña, para que no se pueda deducir quién la lleva.</p>`}
+    <h2 class="sp-24" style="font-size:22px;margin-bottom:0">Historial</h2>
+    ${eds.length ? `<p class="lede">Una ficha por edición, con su informe completo.</p><ul class="card hist">${hist}</ul>` : `<p class="lede">Aún no hay ediciones cerradas. Al terminar cada una, su informe queda aquí.</p>`}
   </section></main>${nav()}` };
 }
 
@@ -461,11 +468,12 @@ function vFinal() {
   const base = 3.6 + chain.length * .22;
   return { html: `${header()}<main class="main"><section class="screen pad" data-key="${S.replayKey}">
     <div style="text-align:center">
-      <div class="eyebrow gold">${f.provisional ? 'El perdedor, de momento, es' : 'El perdedor del año es'}</div>
+      <div class="eyebrow gold">${f.provisional ? 'El perdedor, de momento, es' : `El perdedor de la edición ${f.edition} es`}</div>
       <div class="loser-ring ring-in"><span class="cd" aria-hidden="true" style="animation-delay:.2s">3</span><span class="cd" aria-hidden="true" style="animation-delay:1s">2</span><span class="cd" aria-hidden="true" style="animation-delay:1.8s">1</span><span class="loser">${esc(loser)}</span></div>
       <p class="rise small sp-12" style="font-size:14px;animation-delay:3.1s">Tenía «La llevas» a las 23:59:59 del 30 de noviembre.${f.provisional ? ' Hay disputas abiertas hasta el 7 de diciembre: el resultado puede cambiar.' : ''}</p>
     </div>
-    <div class="sp-20"><div class="row rise" style="animation-delay:3.4s"><span class="label">Así fue la partida</span><button class="linkbtn" data-act="go-registro">Registro completo</button></div>
+    ${showLast() ? `<div class="sp-20 rise" style="text-align:center;animation-delay:3.2s"><div class="eyebrow" data-live="eyebrow">${eyebrowTxt()}</div><div class="count" data-live="count">${countdown()}</div><p class="small sp-8">Edición ${S.me.edition}: la lleva el perdedor del año pasado.</p></div>` : ''}
+    <div class="sp-20"><div class="row rise" style="animation-delay:3.4s"><span class="label">Así fue la partida</span><button class="linkbtn" data-act="go-informe">Informe completo</button></div>
       <ol class="card chain">${rows}</ol>
       <p class="small sp-8 rise" style="animation-delay:${base + .1}s">Se publica entero, con las fotos y los vídeos que haya, para todos los jugadores.</p></div>
     <div class="punish push rise sp-20" style="animation-delay:${base + .3}s"><div class="eyebrow">Castigo</div><p>Cena formal en diciembre, a cargo de ${esc(loser)}. Propone cuatro fechas y gana la más votada. Quedan prohibidos el 24 y el 31.</p></div>
@@ -473,14 +481,31 @@ function vFinal() {
   </section></main>${nav()}` };
 }
 
-function vRegistro() {
-  const f = S.final; if (!f) return vFinal();
+function vInforme() {
+  const f = S.repFrom === 'jugadores' ? S.rep : S.final; if (!f) return vEstado();
+  const st = f.stats || {}, flt = S.repFilter || '';
   const label = { confirmed: 'Confirmado', pending: 'Pendiente', disputed: 'En disputa', void: 'Anulado por la Junta' };
-  const items = f.chain.map(e => `<div class="card entry"><div class="head"><b>${e.from ? esc(e.from) : 'Sorteo'} → ${esc(e.to)}</b><span class="pill ${e.status === 'void' ? '' : 'muted'}">${e.status !== 'void' && !e.counts ? 'Sin efecto' : label[e.status]}</span></div><p>${fmtDay(ts(e.touched_at))} · ${fmtTime(ts(e.touched_at))}${e.place ? ' · ' + esc(e.place) : ''}</p>${thumbs(e.media)}</div>`).join('');
-  return { html: `${header({ back: 'tab-estado', backLabel: 'Resultado', hideDay: true })}<main class="main"><section class="screen pad fade">
-    <h1>Registro completo</h1>
-    <p class="lede">Todos los toques de la edición, incluidos los anulados, con sus pruebas.</p>
-    <div class="stack sp-20" style="gap:10px">${items}</div>
+  const names = [...new Set(f.chain.flatMap(e => [e.from, e.to]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const chips = ['', ...names].map(n => `<button type="button" class="fchip" data-act="rep-filter" data-n="${esc(n)}" aria-pressed="${flt === n}">${n ? esc(n) : 'Todos'}</button>`).join('');
+  const open = S.repOpen || (S.repOpen = new Set());
+  const entries = f.chain.filter(e => !flt || e.from === flt || e.to === flt).map(e => {
+    const o = open.has(e.id), tag = e.status === 'void' ? 'Anulado' : !e.counts ? 'Sin efecto' : e.disputed ? 'Disputado' : '';
+    return `<div class="card entry"><button class="ehead" data-act="rep-toggle" data-id="${e.id}" aria-expanded="${o}"><span class="head"><b>${e.from ? esc(e.from) : 'Sorteo'} → ${esc(e.to)}</b>${tag ? `<span class="pill ${e.status === 'void' ? '' : 'muted'}">${tag}</span>` : ''}</span><span class="sub">${fmtDay(ts(e.touched_at))} · ${fmtTime(ts(e.touched_at))}${e.place ? ' · ' + esc(e.place) : ''}${e.media.length ? ` · ${e.media.length} ${e.media.some(m => m.kind === 'video') ? 'prueba(s)' : e.media.length === 1 ? 'foto' : 'fotos'}` : ''}</span></button>
+      ${o ? `<div class="ebody"><p>${label[e.status] || ''}${e.verdict ? ' · ' + esc(e.verdict) : ''}</p>${e.media.length ? thumbs(e.media) : '<p class="small">Sin fotos ni vídeos.</p>'}</div>` : ''}</div>`;
+  }).join('');
+  const stat = (k, v) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`;
+  const rk = f.players.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}</span><span class="tm">${avgTxt(p.secs)}</span></li>`).join('');
+  const back = S.repFrom === 'jugadores' ? { back: 'tab-jugadores', backLabel: 'Jugadores' } : { back: 'tab-estado', backLabel: 'Resultado' };
+  return { html: `${header({ ...back, hideDay: true })}<main class="main"><section class="screen pad fade">
+    <div class="eyebrow">Informe · Edición ${f.edition} · ${f.year}${f.provisional ? ' · provisional' : ''}</div>
+    <h1 class="sp-12">Perdedor: ${esc(f.loser)}</h1>
+    <div class="stats sp-16">${stat('Pillados', st.touches ?? 0)}${stat('Disputas', st.disputes ?? 0)}${stat('Anulados', st.voided ?? 0)}${stat('Jugadores', st.players ?? 0)}
+      ${st.longest && st.longest.secs ? stat('Más tiempo la llevó ' + esc(st.longest.name), hms(st.longest.secs)) : ''}${st.shortest ? stat('Pase más rápido: ' + esc(st.shortest.name), hms(st.shortest.secs)) : ''}</div>
+    <h2 class="sp-24" style="font-size:20px;margin:0">Tiempo llevándola</h2>
+    <ol class="card plist rank">${rk}</ol>
+    <h2 class="sp-24" style="font-size:20px;margin:0">Pillados</h2>
+    <div class="fchips sp-12">${chips}</div>
+    <div class="stack sp-12" style="gap:10px">${entries || '<p class="small">Sin pillados.</p>'}</div>
   </section></main>${nav()}` };
 }
 
@@ -507,7 +532,7 @@ function sheetHtml() {
 }
 
 /* ---------- render ---------- */
-const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, registro: vRegistro };
+const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
   const keep = [...app.querySelectorAll('.toast,.push-note')];
@@ -562,10 +587,11 @@ async function refresh(initial) {
   else if (p.status !== 'admitted' || p.next_edition) { if (!['contrato', 'clausula'].includes(S.view)) S.view = 'espera'; }
   else {
     if (pre.includes(S.view)) S.view = 'estado';
-    if (me.finished && !S.final) { try { S.final = await rpc('final_result'); await signAll(S.final.chain.flatMap(e => e.media)); } catch (_) { } }
-    if (me.finished && S.final && S.final.provisional) { try { S.final = await rpc('final_result'); await signAll(S.final.chain.flatMap(e => e.media)); } catch (_) { } }
+    const target = me.finished ? me.edition : (!started() && me.last_edition ? me.last_edition : null);
+    if (!target) S.final = null;
+    else if (!S.final || S.final.edition !== target || S.final.provisional) { try { S.final = await rpc('edition_report', { p_edition: target }); await signAll(S.final.chain.flatMap(e => e.media)); } catch (_) { } }
   }
-  const sig = JSON.stringify([me.player, me.holds, me.notice && me.notice.touch_id, me.open_votes, me.draw_done, me.finished, me.start_at, me.end_at]);
+  const sig = JSON.stringify([me.player, me.holds, me.notice && me.notice.touch_id, me.open_votes, me.draw_done, me.finished, me.start_at, me.end_at, me.edition, me.last_edition]);
   const changed = sig !== lastSig; lastSig = sig;
   return changed;
 }
@@ -778,7 +804,11 @@ app.addEventListener('click', async e => {
       case 'avisos':
         try { await enablePush(); toast('Avisos activados en este móvil.'); } catch (err) { toast(err.message || errMsg(err)); }
         render(); break;
-      case 'go-registro': go('registro'); break;
+      case 'go-informe': S.repFrom = 'estado'; S.repFilter = ''; S.repOpen = new Set(); go('informe'); break;
+      case 'tab-jugadores': await loadPlayers(); go('jugadores'); break;
+      case 'open-hist': { const r = await rpc('edition_report', { p_edition: +b.dataset.e }); await signAll(r.chain.flatMap(e => e.media)); S.rep = r; S.repFrom = 'jugadores'; S.repFilter = ''; S.repOpen = new Set(); go('informe'); break; }
+      case 'rep-filter': S.repFilter = b.dataset.n; render(); break;
+      case 'rep-toggle': { const id = +b.dataset.id; S.repOpen.has(id) ? S.repOpen.delete(id) : S.repOpen.add(id); render(); break; }
       case 'replay': S.replayKey++; render(); app.querySelector('.main').scrollTop = 0; break;
       case 'logout': await sb.auth.signOut(); S.me = null; S.session = null; S.final = null; lastSig = ''; go('entrar'); break;
       case 'ask-leave': S.sheet = 'leave'; render(); break;
@@ -839,7 +869,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // Actualización automática: si hay versión nueva, se instala sola y la app se recarga en un momento seguro.
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller; let updated = false;
-  const safe = () => !['tocar', 'disputa', 'reforma', 'registro', 'entrar'].includes(S.view) && !S.sheet;
+  const safe = () => !['tocar', 'disputa', 'reforma', 'entrar'].includes(S.view) && !S.sheet;
   const reloadIfReady = () => { if (updated && safe()) location.reload(); };
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) { updated = true; reloadIfReady(); } });
   navigator.serviceWorker.register('sw.js').then(reg => {
