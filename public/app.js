@@ -398,7 +398,7 @@ function vEntrar() {
     ${l.err ? `<p class="err" role="alert">${esc(l.err)}</p>` : ''}
     <button class="btn sp-20 ${l.busy ? 'spin' : ''}" type="submit" ${l.busy ? 'disabled' : ''}>Entrar</button>
     <p class="small sp-12">¿Has olvidado la contraseña? Pídesela a quien administra la partida: te pondrá una nueva.</p>
-    <div class="push" style="padding-top:22px;text-align:center"><p class="small">¿Aún no juegas?</p><button type="button" class="btn line sp-8" data-act="go-solicitud">Solicitar unirme</button></div>
+    <div class="sp-24" style="text-align:center"><p class="small">¿Aún no juegas?</p><button type="button" class="btn line sp-8" data-act="go-solicitud">Solicitar unirme</button></div>
   </form></main>` };
 }
 
@@ -825,16 +825,6 @@ setInterval(() => {
 }, 1000);
 setInterval(poll, 20000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.session) { sb.rpc('heartbeat').then(() => poll()); } });
-
-/* ---------- ajuste a la pantalla (iPhone) ---------- */
-// En la app instalada, iOS a veces deja sin pintar la franja inferior: forzamos la altura a la pantalla completa.
-function fitScreen() {
-  const portrait = innerHeight > innerWidth;
-  const full = Math.max(screen.width, screen.height);
-  const h = isStandalone() && portrait ? Math.max(innerHeight, full - (window.visualViewport ? 0 : 0)) : innerHeight;
-  app.style.height = h + 'px'; app.style.bottom = 'auto';
-}
-fitScreen(); addEventListener('resize', fitScreen); addEventListener('orientationchange', fitScreen);
 
 /* ---------- arranque ---------- */
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
