@@ -826,6 +826,16 @@ setInterval(() => {
 setInterval(poll, 20000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.session) { sb.rpc('heartbeat').then(() => poll()); } });
 
+/* ---------- ajuste a la pantalla (iPhone) ---------- */
+// En la app instalada, iOS a veces deja sin pintar la franja inferior: forzamos la altura a la pantalla completa.
+function fitScreen() {
+  const portrait = innerHeight > innerWidth;
+  const full = Math.max(screen.width, screen.height);
+  const h = isStandalone() && portrait ? Math.max(innerHeight, full - (window.visualViewport ? 0 : 0)) : innerHeight;
+  app.style.height = h + 'px'; app.style.bottom = 'auto';
+}
+fitScreen(); addEventListener('resize', fitScreen); addEventListener('orientationchange', fitScreen);
+
 /* ---------- arranque ---------- */
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
 sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT' && S.me) { S.me = null; S.session = null; go('entrar'); } });

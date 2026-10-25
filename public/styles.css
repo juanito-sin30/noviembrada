@@ -7,8 +7,8 @@
   --sans:'Libre Franklin',system-ui,-apple-system,'Segoe UI',sans-serif;
   color-scheme:light;
 }
-html,body{height:100%}
-body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;-webkit-font-smoothing:antialiased}
+html,body{height:100%;margin:0;background:var(--card)}
+body{background:var(--card);color:var(--ink);font-family:var(--sans);font-size:15px;-webkit-font-smoothing:antialiased}
 *{box-sizing:border-box}
 button,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
