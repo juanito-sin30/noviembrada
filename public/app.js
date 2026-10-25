@@ -172,8 +172,11 @@ const lifeLine = () => `<div class="life">${I.check}Señal de vida registrada ·
 function vCargando() { return { html: '<div class="loading">NOVIEMBRADA</div>' }; }
 
 function pushPrompt() {
-  if (!isStandalone() || !VAPID_PUBLIC_KEY || S.push === 'on' || S.push === 'denied' || S.push === 'unsupported') return '';
-  return `<button class="btn line sp-16" data-act="avisos">Activar avisos en este móvil</button>`;
+  if (S.push === 'on') return '';
+  if (!isStandalone()) return `<div class="card note sp-16" style="width:100%;text-align:left"><strong>No recibirás avisos.</strong> Para activarlos, abre este enlace en Safari, pulsa Compartir y «Añadir a pantalla de inicio», y ábrela desde el icono.</div>`;
+  if (S.push === 'denied') return `<div class="card note sp-16" style="width:100%;text-align:left"><strong>Los avisos están bloqueados.</strong> Actívalos en Ajustes del iPhone, Notificaciones, Noviembrada.</div>`;
+  if (S.push === 'unsupported') return `<div class="card note sp-16" style="width:100%;text-align:left">Este móvil no admite avisos. Necesitas iOS 16.4 o superior.</div>`;
+  return `<button class="btn pulse sp-16" data-act="avisos">Activar avisos en este móvil</button>`;
 }
 
 function vEstado() {
