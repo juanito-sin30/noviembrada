@@ -24,10 +24,12 @@ Usan un Postgres embebido (no hace falta Docker) con las mismas funciones y pol�
 3. **Web:** GitHub Pages publica `public/` con el workflow de `.github/workflows/pages.yml`.
 4. **Claves públicas:** `public/config.js` (URL de Supabase, clave anon y clave VAPID pública). Nunca pongas la clave secreta ahí.
 
-## Hacer el sorteo (31 oct)
-1. Regístrate en la app (los 3 primeros son fundadores) y hazte administrador con `supabase/admin/make_admin.sql`.
-2. Con todos delante: **Admin → Hacer el sorteo → Hacer el sorteo ahora**. El resultado es secreto: solo lo ve el elegido.
-   No se puede repetir.
+## Sorteo (automático)
+A las 00:00 del 1 de noviembre (Europe/Madrid) el servidor hace solo el sorteo, elige a quien la lleva (aleatoriedad criptográfica,
+resultado secreto) y manda a todos el aviso «¡Que empiece la Noviembrada, edición N!». Lo dispara el cron de cada minuto, así que
+puede tardar hasta un minuto. Hacen falta al menos 2 jugadores admitidos; si no, lo intenta cada minuto hasta que los haya.
+Reserva manual: **Admin → Hacer el sorteo ahora** (solo si el automático no se ha hecho). No se puede repetir.
+Para otra edición: sube `edition`, cambia `start_at`/`end_at`/`dispute_end_at` en `game_config` y pon `draw_done = false`.
 
 ## Resetear una contraseña
 Edita `supabase/admin/reset_password.sql` (nombre en minúsculas, sin acentos, con puntos: «Marta Puig» → `marta.puig`) y ejecútalo.

@@ -403,7 +403,7 @@ test('avisos: el texto de la cola es genérico y no lleva nombres', async () => 
   const { g, P } = await partida(4);
   await sortea(g, P, 'Gonzalo');
   await toca(g, P.Gonzalo, P.Aina);
-  const sinTexto = (await g.sql(`select count(*)::int n from outbox where kind <> 'join' and body is not null`)).rows[0].n;
+  const sinTexto = (await g.sql(`select count(*)::int n from outbox where kind not in ('join','draw') and body is not null`)).rows[0].n;
   assert.equal(sinTexto, 0, 'solo las solicitudes de ingreso llevan texto propio');
   const q = (await g.sql(`select kind, player_id from outbox where kind='touch'`)).rows;
   assert.equal(q.length, 1); assert.equal(q[0].player_id, P.Aina.id);
@@ -490,5 +490,31 @@ test('avisos sin duplicados: dos reclamos simultáneos no recogen la misma fila'
   assert.equal(ids.length, 5);
   assert.equal(new Set(ids).size, 5, 'ninguna fila reclamada dos veces');
   assert.equal((await g.sql('select * from public.claim_outbox(10)')).rows.length, 0);
+  await g.close();
+});
+
+test('sorteo automático al llegar la hora de inicio, una sola vez y con aviso a todos', async () => {
+  const { g, P } = await partida(4);
+  await g.sql(`update game_config set test_mode = false, start_at = now() + interval '1 hour', end_at = now() + interval '30 days'`);
+  await g.rpc(P.Gonzalo, 'heartbeat');
+  assert.equal((await g.sql('select draw_done from game_config')).rows[0].draw_done, false); // aún no es la hora
+  await g.sql(`update game_config set test_mode = false, start_at = now() - interval '1 minute', end_at = now() + interval '30 days'`);
+  await g.rpc(P.Gonzalo, 'heartbeat');
+  assert.equal((await g.sql('select draw_done from game_config')).rows[0].draw_done, true);
+  const hs = [];
+  for (const n of ['Aina', 'Gonzalo', 'Juanito', 'Lola']) hs.push(await holds(g, P[n]));
+  assert.equal(hs.filter(Boolean).length, 1);
+  const av = (await g.sql(`select count(*)::int n, count(distinct player_id)::int j, max(body) b from outbox where kind='draw'`)).rows[0];
+  assert.equal(av.n, 4); assert.equal(av.j, 4); assert.match(av.b, /Noviembrada, edición 1/);
+  await g.rpc(P.Aina, 'heartbeat');
+  assert.equal((await g.sql(`select count(*)::int n from touches where from_id is null`)).rows[0].n, 1);
+  await g.close();
+});
+
+test('el sorteo automático no actúa en modo de prueba', async () => {
+  const { g, P } = await partida(4);
+  await g.sql(`update game_config set test_mode = true, start_at = now() - interval '1 minute', end_at = now() + interval '30 days'`);
+  await g.rpc(P.Gonzalo, 'heartbeat');
+  assert.equal((await g.sql('select draw_done from game_config')).rows[0].draw_done, false);
   await g.close();
 });
