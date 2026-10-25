@@ -29,7 +29,11 @@ A las 00:00 del 1 de noviembre (Europe/Madrid) el servidor hace solo el sorteo, 
 resultado secreto) y manda a todos el aviso «¡Que empiece la Noviembrada, edición N!». Lo dispara el cron de cada minuto, así que
 puede tardar hasta un minuto. Hacen falta al menos 2 jugadores admitidos; si no, lo intenta cada minuto hasta que los haya.
 Reserva manual: **Admin → Hacer el sorteo ahora** (solo si el automático no se ha hecho). No se puede repetir.
-Para otra edición: sube `edition`, cambia `start_at`/`end_at`/`dispute_end_at` en `game_config` y pon `draw_done = false`.
+**Solo la edición 1 se sortea.** Las siguientes empiezan llevándola el perdedor de la edición anterior (si sigue jugando; si no, sorteo).
+Para preparar la edición siguiente, cuando la anterior haya terminado (y resueltas las disputas), ejecuta con `supabase db query --linked`:
+`select start_new_edition('2027-10-31 23:00:00+00', '2027-11-30 22:59:59+00', '2027-12-07 22:59:59+00');`
+Eso guarda al perdedor, sube la edición, pasa a los jugadores admitidos a la nueva y deja el arranque automático a las 00:00 del 1 nov.
+La cadena de toques de ediciones anteriores se conserva pero no cuenta.
 
 ## Resetear una contraseña
 Edita `supabase/admin/reset_password.sql` (nombre en minúsculas, sin acentos, con puntos: «Marta Puig» → `marta.puig`) y ejecútalo.

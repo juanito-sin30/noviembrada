@@ -518,3 +518,25 @@ test('el sorteo automático no actúa en modo de prueba', async () => {
   assert.equal((await g.sql('select draw_done from game_config')).rows[0].draw_done, false);
   await g.close();
 });
+
+test('segunda edición: empieza con el perdedor anterior, sin sorteo, y la cadena anterior no cuenta', async () => {
+  const { g, P } = await partida(4);
+  await g.sql(`update game_config set test_mode = false`);
+  await sortea(g, P, 'Gonzalo');
+  await toca(g, P.Gonzalo, P.Aina);
+  await g.sql(`update game_config set end_at = now() - interval '1 minute', dispute_end_at = now() + interval '1 day'`);
+  await g.sql(`select start_new_edition(now() + interval '1 hour', now() + interval '30 days', now() + interval '37 days')`);
+  const cfg = (await g.sql('select edition, draw_done, last_loser from game_config')).rows[0];
+  assert.equal(cfg.edition, 2); assert.equal(cfg.draw_done, false); assert.equal(cfg.last_loser, P.Aina.id);
+  assert.equal(await holds(g, P.Aina), false);
+  // llega la hora de la edición 2
+  await g.sql(`update game_config set start_at = now() - interval '1 minute'`);
+  await g.rpc(P.Gonzalo, 'heartbeat');
+  assert.equal(await holds(g, P.Aina), true, 'la lleva el perdedor de la edición 1');
+  for (const n of ['Gonzalo', 'Juanito', 'Lola']) assert.equal(await holds(g, P[n]), false);
+  const b = (await g.sql(`select body from outbox where kind='draw' order by id desc limit 1`)).rows[0].body;
+  assert.match(b, /edición 2.*perdedor del año pasado/);
+  await toca(g, P.Aina, P.Lola);
+  assert.equal(await holds(g, P.Lola), true);
+  await g.close();
+});
