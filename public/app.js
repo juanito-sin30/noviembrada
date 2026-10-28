@@ -172,7 +172,6 @@ function mediaPicker(group, st, hint) {
    ${thumbs(st.media, true, group)}${st.err ? `<p class="err" role="alert">${esc(st.err)}</p>` : ''}
    <p class="small sp-8">${hint}</p>`;
 }
-const lifeLine = () => `<div class="life">${I.check}Señal de vida registrada · la próxima, antes del ${fmtDay(now() + 2 * 864e5)}</div>`;
 
 /* ---------- pantallas ---------- */
 function vCargando() { return { html: '<div class="loading">NOVIEMBRADA</div>' }; }
@@ -208,8 +207,7 @@ function vEstado() {
       <button class="disc pop" data-act="hide" aria-label="Ocultar estado">${I.eye}<b>NO LA<br>LLEVAS</b><span class="small">${drawn ? 'De momento.' : 'Aún no hay sorteo.'}</span></button>
       <div class="timer" style="--t:5s"><i></i></div>
       <p class="lead">Se oculta solo en 5 segundos.<br>Toca el círculo para ocultarlo ya.</p>
-      <div class="card note push" style="width:100%;text-align:left">Que no la lleves hoy no quiere decir nada. Si te preguntan, tú también respondes <em>«no te lo digo»</em>: si dices «no», delatas a quien la lleva.</div>
-      ${lifeLine()}</section></main>${nav()}` };
+      <div class="card note push" style="width:100%;text-align:left">Que no la lleves hoy no quiere decir nada. Si te preguntan, tú también respondes <em>«no te lo digo»</em>: si dices «no», delatas a quien la lleva.</div></section></main>${nav()}` };
   }
   return { html: `${header()}<main class="main"><section class="screen center pad fade">
     <div class="eyebrow" data-live="eyebrow">${eyebrowTxt()}</div>
@@ -222,8 +220,7 @@ function vEstado() {
     <p class="small sp-8">${drawn ? 'Sorteo hecho.' : 'Sorteo pendiente.'}</p>
     ${notice() ? `<button class="btn pulse sp-16" data-act="open-aviso">Tienes un aviso pendiente</button>` : ''}
     <div class="card note push" style="width:100%;text-align:left;${notice() ? 'margin-top:16px' : ''}">Si te preguntan «¿la llevas?», todos responden lo mismo: <em>«no te lo digo»</em>. Si los demás dicen «no», quien calla queda delatado.</div>
-    ${pushPrompt()}
-    ${lifeLine()}</section></main>${nav()}` };
+    ${pushPrompt()}</section></main>${nav()}` };
 }
 
 function trucesCard() {

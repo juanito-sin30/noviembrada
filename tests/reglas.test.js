@@ -400,15 +400,13 @@ test('avisos de pillado: claro al tocado, anónimo a todos (el tocado recibe amb
   await g.close();
 });
 
-test('señal de vida: a las 48 h sin abrir la app, recordatorio genérico (a cualquiera, no solo al portador)', async () => {
+test('ya no hay recordatorio de señal de vida: 48 h sin abrir la app no genera avisos', async () => {
   const { g, P } = await partida(4);
   await sortea(g, P, 'Gonzalo');
-  await g.sql(`update game_config set clock_offset = interval '50 hours'`);
-  await g.rpc(P.Gonzalo, 'heartbeat');                         // solo Gonzalo abre la app
-  const q = (await g.sql(`select player_id from outbox where kind='reminder'`)).rows.map(r => r.player_id).sort();
-  assert.deepEqual(q, [P.Aina.id, P.Juanito.id, P.Lola.id].sort());
-  await g.rpc(P.Gonzalo, 'heartbeat');
-  assert.equal((await g.sql(`select count(*)::int n from outbox where kind='reminder'`)).rows[0].n, 3, 'sin duplicados');
+  await g.sql(`update game_config set test_mode = false`);
+  await g.sql(`update players set last_seen = now() - interval '3 days'`);
+  await g.rpc(P.Aina, 'heartbeat');
+  assert.equal((await g.sql(`select count(*)::int n from outbox where kind='reminder'`)).rows[0].n, 0);
   await g.close();
 });
 
@@ -667,13 +665,10 @@ test('todos los avisos llevan texto propio (ninguno sale como «Tienes un aviso�
   await sortea(g, P, 'Gonzalo');
   const id = await toca(g, P.Gonzalo, P.Aina);
   await g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45));
-  await g.sql(`update players set last_seen = now() - interval '3 days'`);
-  await g.sql(`update game_config set test_mode = false`);
-  await g.rpc(P.Aina, 'heartbeat');   // recordatorio de señal de vida a los demás
   const sin = (await g.sql(`select distinct kind from outbox where body is null and kind <> 'welcome'`)).rows;
   assert.deepEqual(sin, [], 'sin texto: ' + JSON.stringify(sin));
   const kinds = (await g.sql(`select distinct kind from outbox`)).rows.map(r => r.kind).sort();
-  for (const k of ['draw', 'touch', 'pillado', 'version', 'vote', 'reminder']) assert.ok(kinds.includes(k), k);
+  for (const k of ['draw', 'touch', 'pillado', 'version', 'vote']) assert.ok(kinds.includes(k), k);
   await g.close();
 });
 
