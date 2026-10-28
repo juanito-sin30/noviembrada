@@ -392,11 +392,11 @@ test('avisos de pillado: claro al tocado, anónimo a todos (el tocado recibe amb
   await toca(g, P.Gonzalo, P.Aina);
   const t = (await g.sql(`select player_id, body from outbox where kind='touch'`)).rows;
   assert.equal(t.length, 1); assert.equal(t[0].player_id, P.Aina.id);
-  assert.match(t[0].body, /Te han pillado/);
+  assert.match(t[0].body, /Has sido tocado/);
   const an = (await g.sql(`select player_id, body from outbox where kind='pillado'`)).rows;
   assert.equal(an.length, 4, 'a todos los jugadores');
   assert.equal(new Set(an.map(x => x.player_id)).size, 4);
-  for (const x of an) { assert.match(x.body, /Ha habido un pillado/); assert.doesNotMatch(x.body, /Gonzalo|Aina/); }
+  for (const x of an) { assert.match(x.body, /estatus ha cambiado de manos/); assert.doesNotMatch(x.body, /Gonzalo|Aina/); }
   await g.close();
 });
 
@@ -659,5 +659,72 @@ test('tregua: se vota (un «no» la anula), y bloquea pillar en ese sitio y esas
   assert.ok(ok);
   await g.sql(`update game_config set clock_offset = interval '7 hours'`);
   assert.ok(await toca(g, P.Juanito, P.Aina, 0, 'Cantina ETSEIB'), 'terminada la tregua vuelve a valer');
+  await g.close();
+});
+
+test('todos los avisos llevan texto propio (ninguno sale como «Tienes un aviso»)', async () => {
+  const { g, P } = await partida(4);
+  await sortea(g, P, 'Gonzalo');
+  const id = await toca(g, P.Gonzalo, P.Aina);
+  await g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45));
+  await g.sql(`update players set last_seen = now() - interval '3 days'`);
+  await g.sql(`update game_config set test_mode = false`);
+  await g.rpc(P.Aina, 'heartbeat');   // recordatorio de señal de vida a los demás
+  const sin = (await g.sql(`select distinct kind from outbox where body is null and kind <> 'welcome'`)).rows;
+  assert.deepEqual(sin, [], 'sin texto: ' + JSON.stringify(sin));
+  const kinds = (await g.sql(`select distinct kind from outbox`)).rows.map(r => r.kind).sort();
+  for (const k of ['draw', 'touch', 'pillado', 'version', 'vote', 'reminder']) assert.ok(kinds.includes(k), k);
+  await g.close();
+});
+
+test('aviso de voto pendiente: a 6 h del cierre, solo a quien no ha votado y una vez por ronda', async () => {
+  const { g, P } = await partida(5);
+  await g.sql(`update game_config set test_mode = false`);
+  await sortea(g, P, 'Gonzalo');
+  const id = await toca(g, P.Gonzalo, P.Aina);
+  const cid = await g.rpc(P.Aina, 'respond_touch', id, 'dispute', 'x'.repeat(45));
+  await g.rpc(P.Juanito, 'cast_vote', cid, 'nulo');
+  await g.sql(`select tick()`);
+  assert.equal((await g.sql(`select count(*)::int n from outbox where kind='voteremind'`)).rows[0].n, 0, 'aún falta mucho');
+  await g.sql(`update game_config set clock_offset = interval '43 hours'`);   // quedan ~5 h
+  await g.rpc(P.Lola, 'heartbeat');
+  const r = (await g.sql(`select player_id, body from outbox where kind='voteremind'`)).rows;
+  assert.equal(r.length, 2, 'Lola y Marta, que no han votado');   // elegibles: Juanito, Lola, Marta
+  assert.ok(!r.some(x => x.player_id === P.Juanito.id));
+  assert.match(r[0].body, /cinco horas/);
+  await g.rpc(P.Lola, 'heartbeat');
+  assert.equal((await g.sql(`select count(*)::int n from outbox where kind='voteremind'`)).rows[0].n, 2, 'no se repite');
+  await g.close();
+});
+
+test('avisos de tregua (1 h antes y al terminar), penúltimo día y fin de edición, una sola vez cada uno', async () => {
+  const { g, P } = await partida(5);
+  await g.sql(`update game_config set test_mode = false`);
+  await sortea(g, P, 'Gonzalo');
+  const ini = new Date(Date.now() + 3 * 3600e3), fin = new Date(Date.now() + 6 * 3600e3);
+  const cid = await g.rpc(P.Lola, 'propose_truce', 'Cantina ETSEIB', ini, fin, '');
+  for (const n of ['Aina', 'Gonzalo', 'Juanito', 'Marta']) await g.rpc(P[n], 'cast_vote', cid, 'si');
+  const cnt = async k => (await g.sql(`select count(*)::int n from outbox where kind=$1`, [k])).rows[0].n;
+  await g.sql('select tick()');
+  assert.equal(await cnt('truce'), 0);
+  await g.sql(`update game_config set clock_offset = interval '2 hours 30 minutes'`);   // falta ~30 min
+  await g.rpc(P.Aina, 'heartbeat'); await g.rpc(P.Aina, 'heartbeat');
+  assert.equal(await cnt('truce'), 5, 'una vez a cada jugador');
+  assert.match((await g.sql(`select body from outbox where kind='truce' limit 1`)).rows[0].body, /Cantina ETSEIB/);
+  await g.sql(`update game_config set clock_offset = interval '6 hours 10 minutes'`);
+  await g.rpc(P.Aina, 'heartbeat'); await g.rpc(P.Aina, 'heartbeat');
+  assert.equal(await cnt('truce'), 10, 'aviso de fin');
+
+  // penúltimo día a las 10:00 y fin de edición
+  await g.sql(`update game_config set clock_offset = '0', end_at = now() + interval '20 hours'`);
+  await g.rpc(P.Aina, 'heartbeat');
+  const ld = await cnt('lastday');
+  await g.rpc(P.Aina, 'heartbeat');
+  assert.equal(await cnt('lastday'), ld, 'una sola vez');
+  assert.equal(await cnt('endofgame'), 0);
+  await g.sql(`update game_config set end_at = now() - interval '1 minute'`);
+  await g.rpc(P.Aina, 'heartbeat'); await g.rpc(P.Aina, 'heartbeat');
+  assert.equal(await cnt('endofgame'), 5);
+  assert.match((await g.sql(`select body from outbox where kind='endofgame' limit 1`)).rows[0].body, /edición 1 ha terminado/);
   await g.close();
 });

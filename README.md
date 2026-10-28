@@ -46,6 +46,11 @@ Si hay disputas, espera a que se resuelvan (como máximo el 7 dic). No actúa en
   el servidor rechaza pillados cuya hora caiga en la ventana y cuyo lugar coincida con el sitio de la tregua (comparación sin acentos ni mayúsculas;
   si alguien escribe otro nombre para el mismo sitio, se resuelve con una disputa en la Junta).
 
+## Textos de los avisos
+Todos los avisos llevan texto propio (tono formal y dramático); ninguno sale como «Tienes un aviso». Los textos están en las migraciones
+`0015_notifications.sql` (y las funciones que llaman a `enqueue`/`enqueue_msg`). Avisos programados: voto pendiente (6 h antes de cerrar, solo a quien no ha votado),
+tregua (1 h antes y al terminar), penúltimo día (10:00) y fin de la edición (00:00 del 1 dic).
+
 ## Avisos de pillado
 Al tocado le llega «Te han pillado. Ya la llevas…». A todos (incluidos tocador y tocado) les llega el anónimo «Ha habido un pillado».
 Así nadie se delata por recibir o no el aviso.

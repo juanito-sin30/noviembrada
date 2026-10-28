@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-const MIGS = ['0001_core.sql', '0004_players_list.sql', '0006_join_notice.sql', '0007_claim_outbox.sql', '0008_ranking.sql', '0009_no_confirm.sql', '0010_ranking_final.sql', '0011_auto_draw.sql', '0012_editions.sql', '0013_reports.sql', '0014_place_truce_votes.sql'].map(f => path.resolve(import.meta.dirname, '../supabase/migrations/' + f));
+const MIGS = ['0001_core.sql', '0004_players_list.sql', '0006_join_notice.sql', '0007_claim_outbox.sql', '0008_ranking.sql', '0009_no_confirm.sql', '0010_ranking_final.sql', '0011_auto_draw.sql', '0012_editions.sql', '0013_reports.sql', '0014_place_truce_votes.sql', '0015_notifications.sql'].map(f => path.resolve(import.meta.dirname, '../supabase/migrations/' + f));
 const PORT = 54329;
 let server, dir, base, counter = 0;
 
