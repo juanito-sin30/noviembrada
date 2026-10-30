@@ -74,6 +74,20 @@ test('admisión por mayoría: el aspirante entra', async () => {
   await g.close();
 });
 
+test('el administrador admite al aspirante de golpe; otros no pueden', async () => {
+  const g = await freshDb();
+  const a = await g.join('Aina'), b = await g.join('Gonzalo'), c = await g.join('Juanito');
+  await g.sql(`update players set is_admin = true where name='Aina'`);
+  const d = await g.join('Lola');
+  const id = (await g.rpc(a, 'list_cases'))[0].id;
+  await rejects(g.rpc(b, 'admin_accept', id), 'not_admin');
+  await g.rpc(a, 'admin_accept', id);
+  assert.equal((await g.sql('select status from players where id=$1', [d.id])).rows[0].status, 'admitted');
+  assert.equal((await g.sql('select verdict from cases where id=$1', [id])).rows[0].verdict, 'Aceptado por el departamento Administrativo');
+  await rejects(g.rpc(a, 'admin_accept', id), 'not_found');
+  await g.close();
+});
+
 test('sorteo: solo lo sabe el elegido y no se puede repetir', async () => {
   const { g, P } = await partida(4);
   await rejects(g.rpc(P.Gonzalo, 'admin_draw'), 'not_admin');

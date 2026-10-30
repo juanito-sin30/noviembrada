@@ -370,6 +370,7 @@ function vCaso() {
     <fieldset class="stack sp-16" style="border:0;margin:0;padding:0"><legend class="label" style="margin-bottom:8px">${party ? 'Eres parte: no votas' : 'Tu voto'}</legend>${opts}</fieldset>
     <div class="sp-16"><div class="row"><span style="color:var(--muted)">Han votado</span><strong style="font-variant-numeric:tabular-nums">${c.voted} de ${c.voters}</strong></div><div class="bar ink"><i style="width:${pct}%"></i></div>
       <p class="small sp-8">${c.round > 1 ? 'Segunda votación por empate. ' : ''}${c.kind === 'truce' ? 'Basta un voto en contra para anular la tregua.' : 'Gana la mayoría simple de los votos emitidos. Si hay empate, se repite una vez.'}</p></div>
+    ${c.kind === 'admission' && c.status === 'open' && player().is_admin ? '<div class="sp-16"><button class="btn line" data-act="admin-accept">Aceptar automáticamente (Administración)</button><p class="small sp-8">Solo para administradores. Cierra el caso ya, sin esperar a los votos.</p></div>' : ''}
     <div class="push" style="padding-top:20px">
       <div class="life" style="margin:0 0 10px">${I.smallLock}Tu voto es anónimo: se guarda sin tu nombre.</div>
       ${c.i_voted && !mv && c.status === 'open' ? '<p class="small" style="margin-bottom:10px">Ya has votado. Solo puedes cambiar el voto desde el móvil con el que votaste.</p>' : ''}
@@ -856,6 +857,7 @@ app.addEventListener('click', async e => {
       case 'go-disputa': S.disputa = fresh.disputa(); go('disputa'); break;
       case 'cancel-disputa': go('aviso'); break;
       case 'open-case': S.version = fresh.version(); S.caseId = +b.dataset.id; await loadCase(S.caseId); { const mv = myVote(S.detail); S.pick = mv ? mv.c : null; } go('caso'); break;
+      case 'admin-accept': if (confirm('¿Admitir ya a este jugador, sin votación?')) { await rpc('admin_accept', { p_case: S.caseId }); await loadCase(S.caseId); await refresh(); render(); toast('Jugador admitido.'); } break;
       case 'vote': if (S.pick) { const d = S.detail, prev = myVote(d), tok = prev ? prev.t : newToken(), choice = S.pick; await rpc('cast_vote', { p_case: S.caseId, p_choice: choice, p_token: tok }); saveVote(d, tok, choice); await loadCase(S.caseId); await refresh(); render(); toast(prev ? 'Voto cambiado.' : 'Voto emitido. Nadie sabrá qué has votado.'); } break;
       case 'go-propuesta': go('propuesta'); break;
       case 'go-tregua': S.tregua = fresh.tregua(); go('tregua'); break;
