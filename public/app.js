@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.100.0/+esm';
 import { SUPABASE_URL, SUPABASE_KEY, VAPID_PUBLIC_KEY } from './config.js';
 import { CONTRACT, I as ICONS } from './contract.js';
-const I = { ...ICONS, people: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 13.8c2.3.2 4 1.9 4 4.7"/></svg>' };
+const I = { ...ICONS, chat: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>', people: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 13.8c2.3.2 4 1.9 4 4.7"/></svg>' };
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'noviembrada-auth' }
@@ -42,6 +42,8 @@ const ERRORS = {
   expired: 'El plazo ha terminado.',
   text_length: 'El texto debe tener entre 40 y 600 caracteres.',
   not_found: 'No se ha encontrado.',
+  chat_length: 'El mensaje debe tener entre 1 y 500 caracteres.',
+  chat_rate: 'Vas muy deprisa. Espera un poco.',
   party_cannot_vote: 'Eres parte en este caso: no votas.',
   not_eligible: 'No puedes votar en este caso.',
   already_voted: 'Ya has votado en este caso.',
@@ -139,7 +141,7 @@ function go(view, extra) {
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
 const S_tab_informe = () => (S.repFrom === 'jugadores' ? 'jugadores' : 'estado');
-const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', informe: S_tab_informe(),  junta: 'junta', caso: 'junta', reforma: 'junta', propuesta: 'junta', tregua: 'junta', mias: 'jugadores', jugadores: 'jugadores', contrato: 'contrato', clausula: 'contrato' })[v];
+const tabOf = v => ({ estado: 'estado', aviso: 'estado', disputa: 'estado', tocar: 'estado', final: 'estado', informe: S_tab_informe(),  junta: 'junta', caso: 'junta', reforma: 'junta', propuesta: 'junta', tregua: 'junta', mias: 'jugadores', jugadores: 'jugadores', chat: 'chat', contrato: 'contrato', clausula: 'contrato' })[v];
 const hoursLeft = c => Math.max(0, Math.ceil((ts(c.closes_at) - now()) / 36e5));
 
 function header(opts) {
@@ -157,6 +159,7 @@ function nav() {
    <button data-act="tab" data-v="estado" ${t === 'estado' ? 'aria-current="page"' : ''}>${n}${I.clock}Estado</button>
    <button data-act="tab" data-v="junta" ${t === 'junta' ? 'aria-current="page"' : ''}>${j}${I.hall}Junta</button>
    <button data-act="tab" data-v="jugadores" ${t === 'jugadores' ? 'aria-current="page"' : ''}>${I.people}Jugadores</button>
+   <button data-act="tab" data-v="chat" ${t === 'chat' ? 'aria-current="page"' : ''}>${I.chat}Chat</button>
    <button data-act="tab" data-v="contrato" ${t === 'contrato' ? 'aria-current="page"' : ''}>${I.doc}Contrato</button></nav>`;
 }
 function thumbs(media, removable, group) {
@@ -583,8 +586,35 @@ function sheetHtml() {
    </div></div>`;
 }
 
+/* ---------- chat anónimo ---------- */
+let chatTimer = null;
+const chatMsgs = () => ((S.chat && S.chat.messages) || []).map(m => `<div class="msg ${m.mine ? 'mine' : ''}"><div class="who">${m.mine ? 'Tú · ' : ''}${esc(m.alias)}<span>${fmtTime(ts(m.at))}</span></div><div class="txt">${esc(m.body)}${player() && player().is_admin ? `<button class="mdel" data-act="chat-del" data-id="${m.id}" aria-label="Borrar mensaje">×</button>` : ''}</div></div>`).join('') || '<p class="small" style="text-align:center;margin-top:30px">Aún no hay mensajes. Escribe el primero.</p>';
+async function loadChat() { S.chat = await rpc('chat_list'); }
+function paintChat(stick) {
+  const l = document.getElementById('chat-list'); if (!l) return;
+  const near = stick || l.scrollHeight - l.scrollTop - l.clientHeight < 80;
+  l.innerHTML = chatMsgs(); if (near) l.scrollTop = l.scrollHeight;
+}
+function vChat() {
+  clearInterval(chatTimer);
+  chatTimer = setInterval(async () => { if (S.view !== 'chat') { clearInterval(chatTimer); return; } try { await loadChat(); paintChat(); } catch (_) { } }, 4000);
+  setTimeout(() => paintChat(true), 0);
+  return { html: `${header({ hideDay: true })}<main class="main chatmain"><section class="screen pad fade" style="padding-bottom:0;flex:1;min-height:0">
+    <h1 style="font-size:26px">Chat anónimo</h1>
+    <p class="small" style="margin:4px 0 10px">Hoy eres <strong>${esc((S.chat && S.chat.alias) || '…')}</strong>. Nadie sabe quién eres, y tu alias es el mismo toda la edición.</p>
+    <div id="chat-list" class="chatlist"></div>
+    <form id="f-chat" class="chatform" novalidate><input class="field" id="chat-in" maxlength="500" placeholder="Escribe un mensaje" autocomplete="off"><button class="btn small-btn" type="submit">Enviar</button></form>
+  </section></main>${nav()}` };
+}
+async function submitChat(e) {
+  e.preventDefault();
+  const i = document.getElementById('chat-in'), t = i.value.trim(); if (!t) return;
+  i.value = '';
+  try { await rpc('chat_send', { p_body: t }); await loadChat(); paintChat(true); } catch (err) { i.value = t; toast(errMsg(err)); }
+}
+
 /* ---------- render ---------- */
-const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, propuesta: vPropuesta, tregua: vTregua, mias: vMias, jugadores: vJugadores, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
+const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, propuesta: vPropuesta, tregua: vTregua, mias: vMias, jugadores: vJugadores, chat: vChat, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
   const keep = [...app.querySelectorAll('.toast,.push-note')];
@@ -600,7 +630,7 @@ function wire() {
     S.reveal = true; render(); clearTimeout(revealTimer);
     revealTimer = setTimeout(() => { if (S.view === 'estado' && S.reveal) { S.reveal = false; render(); } }, iHold() ? 15000 : 5000);
   });
-  [['f-tregua', submitTregua], ['f-entrar', submitEntrar], ['f-sol', submitSol], ['f-tocar', submitTocar], ['f-disputa', submitDisputa], ['f-reforma', submitReforma], ['f-version', submitVersion]]
+  [['f-chat', submitChat], ['f-tregua', submitTregua], ['f-entrar', submitEntrar], ['f-sol', submitSol], ['f-tocar', submitTocar], ['f-disputa', submitDisputa], ['f-reforma', submitReforma], ['f-version', submitVersion]]
     .forEach(([id, fn]) => { const f = document.getElementById(id); if (f) f.addEventListener('submit', fn); });
 }
 function hold(el, ms, done) {
@@ -844,7 +874,8 @@ app.addEventListener('click', async e => {
   const a = b.dataset.act;
   try {
     switch (a) {
-      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { await loadPlayers(); } go(b.dataset.v); break;
+      case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { await loadPlayers(); } if (b.dataset.v === 'chat') { try { await loadChat(); } catch (_) { } } go(b.dataset.v); break;
+      case 'chat-del': if (confirm('¿Borrar este mensaje?')) { await rpc('admin_chat_delete', { p_id: +b.dataset.id }); await loadChat(); paintChat(); } break;
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;
@@ -941,7 +972,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // Actualización automática: si hay versión nueva, se instala sola y la app se recarga en un momento seguro.
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller; let updated = false;
-  const safe = () => !['tocar', 'disputa', 'reforma', 'tregua', 'entrar'].includes(S.view) && !S.sheet;
+  const safe = () => !['tocar', 'disputa', 'reforma', 'tregua', 'entrar', 'chat'].includes(S.view) && !S.sheet;
   const reloadIfReady = () => { if (updated && safe()) location.reload(); };
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) { updated = true; reloadIfReady(); } });
   navigator.serviceWorker.register('sw.js').then(reg => {

@@ -253,3 +253,13 @@ textarea.field:focus,.field:focus{border-color:var(--seal);outline:none;box-shad
 .ehead{display:block;width:100%;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit}
 .ehead .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .ebody{margin-top:10px}
+
+.chatmain{display:flex;flex-direction:column;overflow:hidden}
+.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+.msg{max-width:84%;align-self:flex-start}.msg.mine{align-self:flex-end}
+.msg .who{font-size:11px;font-weight:600;color:var(--muted);margin:0 6px 2px;display:flex;gap:8px}.msg .who span{font-weight:400}
+.msg .txt{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 12px;font-size:15px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
+.msg.mine .txt{background:var(--seal);color:var(--on-seal);border-color:var(--seal)}
+.mdel{border:0;background:none;color:inherit;opacity:.5;margin-left:8px;font-size:16px;padding:0 2px}
+.chatform{display:flex;gap:8px;padding:8px 0 12px;border-top:1px solid var(--line)}.chatform .field{flex:1;min-width:0}
+.chatmain .screen{height:100%;min-height:0}

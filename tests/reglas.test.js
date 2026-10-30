@@ -88,6 +88,34 @@ test('el administrador admite al aspirante de golpe; otros no pueden', async () 
   await g.close();
 });
 
+test('chat anónimo: alias fijo, sin autor visible, solo jugadores, admin borra', async () => {
+  const g = await freshDb();
+  const a = await g.join('Aina'), b = await g.join('Gonzalo'), c = await g.join('Juanito');
+  await g.sql(`update players set is_admin = true where name='Aina'`);
+  const d = await g.join('Lola');
+  await rejects(g.rpc(d, 'chat_list'), 'not_admitted');
+  await rejects(g.rpc(d, 'chat_send', 'hola'), 'not_admitted');
+  await g.rpc(b, 'chat_send', 'Hola a todos');
+  await g.rpc(b, 'chat_send', '  segundo ');
+  const lb = await g.rpc(b, 'chat_list'), lc = await g.rpc(c, 'chat_list');
+  assert.equal(lb.messages.length, 2);
+  assert.equal(lb.alias, (await g.rpc(b, 'chat_list')).alias, 'alias fijo');
+  assert.notEqual(lb.alias, lc.alias);
+  assert.equal(lc.messages[0].alias, lb.alias);
+  assert.equal(lc.messages[0].body, 'Hola a todos');
+  assert.ok(lb.messages.every(m => m.mine) && lc.messages.every(m => !m.mine));
+  assert.ok(!JSON.stringify(lc).includes(b.id) && !JSON.stringify(lc).includes('Gonzalo'), 'no revela autor');
+  await rejects(g.rpc(b, 'chat_send', ''), 'chat_length');
+  await rejects(g.rpc(b, 'chat_send', 'x'.repeat(501)), 'chat_length');
+  await rejects(g.as(b, 'select * from chat_messages'), 'permission denied');
+  await rejects(g.rpc(b, 'admin_chat_delete', lb.messages[0].id), 'not_admin');
+  await g.rpc(a, 'admin_chat_delete', lb.messages[0].id);
+  assert.equal((await g.rpc(c, 'chat_list')).messages.length, 1);
+  for (let i = 0; i < 14; i++) await g.rpc(b, 'chat_send', 'm' + i);
+  await rejects(g.rpc(b, 'chat_send', 'otro'), 'chat_rate');
+  await g.close();
+});
+
 test('sorteo: solo lo sabe el elegido y no se puede repetir', async () => {
   const { g, P } = await partida(4);
   await rejects(g.rpc(P.Gonzalo, 'admin_draw'), 'not_admin');
