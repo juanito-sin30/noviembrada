@@ -105,6 +105,12 @@ test('chat anónimo: alias fijo, sin autor visible, solo jugadores, admin borra'
   assert.equal(lc.messages[0].body, 'Hola a todos');
   assert.ok(lb.messages.every(m => m.mine) && lc.messages.every(m => !m.mine));
   assert.ok(!JSON.stringify(lc).includes(b.id) && !JSON.stringify(lc).includes('Gonzalo'), 'no revela autor');
+  const hoy = lb.alias;
+  await g.sql(`update game_config set clock_offset = interval '1 day'`);
+  const manana = (await g.rpc(b, 'chat_list')).alias;
+  assert.notEqual(manana, hoy, 'el alias cambia al día siguiente');
+  assert.equal((await g.rpc(c, 'chat_list')).messages[0].alias, hoy, 'los mensajes antiguos conservan su alias de aquel día');
+  await g.sql(`update game_config set clock_offset = interval '0'`);
   await rejects(g.rpc(b, 'chat_send', ''), 'chat_length');
   await rejects(g.rpc(b, 'chat_send', 'x'.repeat(501)), 'chat_length');
   await rejects(g.as(b, 'select * from chat_messages'), 'permission denied');

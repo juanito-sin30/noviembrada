@@ -602,9 +602,9 @@ function vChat() {
   setTimeout(() => paintChat(true), 0);
   return { html: `${header({ hideDay: true })}<main class="main chatmain"><section class="screen pad fade" style="padding-bottom:0;flex:1;min-height:0">
     <h1 style="font-size:26px">Chat anónimo</h1>
-    <p class="small" style="margin:4px 0 10px">Hoy eres <strong>${esc((S.chat && S.chat.alias) || '…')}</strong>. Nadie sabe quién eres, y tu alias es el mismo toda la edición.</p>
+    <p class="small" style="margin:4px 0 10px">Hoy eres <strong>${esc((S.chat && S.chat.alias) || '…')}</strong>. Nadie sabe quién eres, y tu alias cambia cada día.</p>
     <div id="chat-list" class="chatlist"></div>
-    <form id="f-chat" class="chatform" novalidate><input class="field" id="chat-in" maxlength="500" placeholder="Escribe un mensaje" autocomplete="off"><button class="btn small-btn" type="submit">Enviar</button></form>
+    <form id="f-chat" class="chatform" novalidate><textarea class="field" id="chat-in" maxlength="500" rows="2" placeholder="Escribe un mensaje" autocomplete="off"></textarea><button class="btn small-btn" type="submit">Enviar</button></form>
   </section></main>${nav()}` };
 }
 async function submitChat(e) {

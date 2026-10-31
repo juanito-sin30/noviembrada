@@ -261,5 +261,5 @@ textarea.field:focus,.field:focus{border-color:var(--seal);outline:none;box-shad
 .msg .txt{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 12px;font-size:15px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
 .msg.mine .txt{background:var(--seal);color:var(--on-seal);border-color:var(--seal)}
 .mdel{border:0;background:none;color:inherit;opacity:.5;margin-left:8px;font-size:16px;padding:0 2px}
-.chatform{display:flex;gap:8px;padding:8px 0 12px;border-top:1px solid var(--line)}.chatform .field{flex:1;min-width:0}
+.chatform{display:flex;flex-direction:column;gap:8px;padding:8px 0 12px;border-top:1px solid var(--line)}.chatform .field{min-width:0;margin-top:0;min-height:64px;padding:10px 14px;line-height:1.4;resize:none}
 .chatmain .screen{height:100%;min-height:0}
