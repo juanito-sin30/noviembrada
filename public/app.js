@@ -218,7 +218,7 @@ function vEstado() {
     <div class="count" data-live="count">${countdown()}</div>
     <button class="dial" id="dial" aria-label="Mantén pulsado para ver tu estado">
       <svg class="ring" viewBox="0 0 244 244" aria-hidden="true"><circle cx="122" cy="122" r="118" fill="none" stroke="var(--seal)" stroke-width="4" stroke-linecap="round" transform="rotate(-90 122 122)"/></svg>
-      <span class="face">${I.lock}<b>Mantén pulsado</b><span>para ver tu estado</span></span>
+      <span class="face">${LOCK_ANIM}<b>Mantén pulsado</b><span>para ver tu estado</span></span>
     </button>
     <p class="lead">Solo lo ves tú.<br>Nadie más sabe quién la lleva.</p>
     <p class="small sp-8">${drawn ? 'Sorteo hecho.' : 'Sorteo pendiente.'}</p>
@@ -288,6 +288,7 @@ const voteKey = c => `nov-vote:${c.id}:${c.round || 1}`;
 const myVote = c => { try { return JSON.parse(localStorage.getItem(voteKey(c)) || 'null'); } catch (_) { return null; } };
 const saveVote = (c, t, choice) => { try { localStorage.setItem(voteKey(c), JSON.stringify({ t, c: choice })); } catch (_) { } };
 const newToken = () => { try { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a, x => x.toString(16).padStart(2, '0')).join(''); } catch (_) { return String(Math.random()).slice(2) + String(Date.now()) + String(Math.random()).slice(2); } };
+const LOCK_ANIM = '<svg class="lockanim" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path class="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const KIND_TEXT = { dispute: 'Disputa de un toque.', admission: 'Solicitud para entrar.', reform: 'Propuesta de reforma.', truce: 'Propuesta de tregua.' };
 function vJunta() {
   const card = (c, kind) => {

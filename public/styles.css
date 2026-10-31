@@ -325,3 +325,12 @@ h1{letter-spacing:-.005em}
 h1{text-wrap:balance}.screen>h1:first-child,.screen>.eyebrow+h1{position:relative}
 .screen>h1+.lede{font-style:italic;font-family:var(--serif)}
 .dial .face svg{stroke:var(--on-seal);filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
+
+/* candado que se abre mientras se mantiene pulsado */
+.dial .face svg.lockanim{stroke:var(--on-seal);overflow:visible}
+.lockanim .shackle{transform-box:view-box;transform-origin:8px 11px;transition:transform .25s ease-out}
+.holding .lockanim .shackle{transform:translateY(-3px) rotate(-38deg);transition:transform var(--hold,1200ms) cubic-bezier(.5,0,.9,.6)}
+@media (prefers-reduced-motion:reduce){.holding .lockanim .shackle{transition-duration:0s!important;transition-delay:var(--hold,1200ms)!important}}
+.dial.holding .face{opacity:1}
+.dial .face b,.dial .face>span{transition:opacity .2s}
+.dial.holding .face b,.dial.holding .face>span{opacity:.35;transition:opacity var(--hold,1200ms) linear}
