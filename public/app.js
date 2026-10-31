@@ -137,6 +137,7 @@ function pushNote() {
 function go(view, extra) {
   clearTimeout(revealTimer);
   if (view !== 'estado') S.reveal = false;
+  else if (S.view !== 'estado') tipIdx = -1;   // frase nueva cada vez que se entra en Estado
   Object.assign(S, extra || {}); S.view = view; render();
   const m = app.querySelector('.main'); if (m) m.scrollTop = 0;
 }
@@ -1084,3 +1085,10 @@ function paintOffline() {
 addEventListener('online', () => { paintOffline(); poll(); });
 addEventListener('offline', paintOffline);
 paintOffline();
+
+// Al volver a la app desde segundo plano también cambia la frase.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  tipIdx = -1;
+  if (S.view === 'estado' && !S.reveal) render();
+});
