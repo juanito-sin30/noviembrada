@@ -159,7 +159,7 @@ function nav() {
    <button data-act="tab" data-v="estado" ${t === 'estado' ? 'aria-current="page"' : ''}>${n}${I.clock}Estado</button>
    <button data-act="tab" data-v="junta" ${t === 'junta' ? 'aria-current="page"' : ''}>${j}${I.hall}Junta</button>
    <button data-act="tab" data-v="jugadores" ${t === 'jugadores' ? 'aria-current="page"' : ''}>${I.people}Jugadores</button>
-   <button data-act="tab" data-v="chat" ${t === 'chat' ? 'aria-current="page"' : ''}>${I.chat}Chat</button>
+   <button data-act="tab" data-v="chat" ${t === 'chat' ? 'aria-current="page"' : ''}>${I.chat}Chat anónimo</button>
    <button data-act="tab" data-v="contrato" ${t === 'contrato' ? 'aria-current="page"' : ''}>${I.doc}Contrato</button></nav>`;
 }
 function thumbs(media, removable, group) {
@@ -601,7 +601,7 @@ function vChat() {
   chatTimer = setInterval(async () => { if (S.view !== 'chat') { clearInterval(chatTimer); return; } try { await loadChat(); paintChat(); } catch (_) { } }, 4000);
   setTimeout(() => paintChat(true), 0);
   return { html: `${header({ hideDay: true })}<main class="main chatmain"><section class="screen pad fade" style="padding-bottom:0;flex:1;min-height:0">
-    <h1 style="font-size:26px">Chat anónimo</h1>
+    <h1 style="font-size:26px">Chat anónimo</h1><div class="anon">🕶 100 % anónimo · nadie ve tu nombre</div>
     <p class="small" style="margin:4px 0 10px">Hoy eres <strong>${esc((S.chat && S.chat.alias) || '…')}</strong>. Nadie sabe quién eres, y tu alias cambia cada día.</p>
     <div id="chat-list" class="chatlist"></div>
     <form id="f-chat" class="chatform" novalidate><textarea class="field" id="chat-in" maxlength="500" rows="2" placeholder="Escribe un mensaje" autocomplete="off"></textarea><button class="btn small-btn" type="submit">Enviar</button></form>

@@ -263,3 +263,5 @@ textarea.field:focus,.field:focus{border-color:var(--seal);outline:none;box-shad
 .mdel{border:0;background:none;color:inherit;opacity:.5;margin-left:8px;font-size:16px;padding:0 2px}
 .chatform{display:flex;flex-direction:column;gap:8px;padding:8px 0 12px;border-top:1px solid var(--line)}.chatform .field{min-width:0;margin-top:0;min-height:64px;padding:10px 14px;line-height:1.4;resize:none}
 .chatmain .screen{height:100%;min-height:0}
+.anon{display:inline-block;margin-top:6px;padding:4px 10px;border-radius:999px;background:var(--seal);color:var(--on-seal);font-size:12px;font-weight:600;letter-spacing:.02em}
+.nav button{font-size:10.5px}

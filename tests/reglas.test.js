@@ -122,6 +122,22 @@ test('chat anónimo: alias fijo, sin autor visible, solo jugadores, admin borra'
   await g.close();
 });
 
+test('sorteo: un jugador excluido sigue en la partida pero nunca sale elegido', async () => {
+  const g = await freshDb();
+  const a = await g.join('Aina'), b = await g.join('Gonzalo'), c = await g.join('Juanito');
+  await g.sql(`update players set draw_excluded = true where id = $1`, [c.id]);
+  const vistos = new Set();
+  for (let i = 0; i < 40; i++) {
+    await g.sql(`delete from touches; update game_config set draw_done = false`);
+    await g.sql('select do_draw()');
+    vistos.add((await g.sql('select to_id from touches where from_id is null')).rows[0].to_id);
+  }
+  assert.ok(!vistos.has(c.id), 'el excluido no sale');
+  assert.ok(vistos.has(a.id) && vistos.has(b.id), 'los demás sí pueden salir');
+  assert.equal((await g.rpc(c, 'me')).player.status, 'admitted');
+  await g.close();
+});
+
 test('sorteo: solo lo sabe el elegido y no se puede repetir', async () => {
   const { g, P } = await partida(4);
   await rejects(g.rpc(P.Gonzalo, 'admin_draw'), 'not_admin');
