@@ -324,3 +324,4 @@ h1{letter-spacing:-.005em}
 /* títulos */
 h1{text-wrap:balance}.screen>h1:first-child,.screen>.eyebrow+h1{position:relative}
 .screen>h1+.lede{font-style:italic;font-family:var(--serif)}
+.dial .face svg{stroke:var(--on-seal);filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
