@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.100.0/+esm';
 import { SUPABASE_URL, SUPABASE_KEY, VAPID_PUBLIC_KEY } from './config.js';
 import { CONTRACT, I as ICONS } from './contract.js';
-const I = { ...ICONS, chat: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>', people: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 13.8c2.3.2 4 1.9 4 4.7"/></svg>' };
+const I = { ...ICONS, eye: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>', chat: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>', people: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 13.8c2.3.2 4 1.9 4 4.7"/></svg>' };
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'noviembrada-auth' }
@@ -154,12 +154,12 @@ function header(opts) {
   return `<header class="top pad">${left}<div class="top-r"><span>${opts.hideDay || !START ? '' : right}</span>${tools ? '<button class="chip" data-act="admin" aria-haspopup="dialog">Admin</button>' : ''}</div></header>`;
 }
 function nav() {
-  const t = tabOf(S.view), n = notice() ? '<span class="dot" aria-label="Aviso pendiente"></span>' : '', j = S.me && S.me.open_votes ? '<span class="dot" aria-label="Votación pendiente"></span>' : '';
+  const t = tabOf(S.view), n = notice() ? '<span class="dot" aria-label="Aviso pendiente"></span>' : '', j = S.me && S.me.open_votes ? '<span class="dot" aria-label="Votación pendiente"></span>' : '', cd = chatUnread() && t !== 'chat' ? '<span class="dot" aria-label="Mensajes nuevos"></span>' : '';
   return `<nav class="nav" aria-label="Principal">
    <button data-act="tab" data-v="estado" ${t === 'estado' ? 'aria-current="page"' : ''}>${n}${I.clock}Estado</button>
    <button data-act="tab" data-v="junta" ${t === 'junta' ? 'aria-current="page"' : ''}>${j}${I.hall}Junta</button>
    <button data-act="tab" data-v="jugadores" ${t === 'jugadores' ? 'aria-current="page"' : ''}>${I.people}Jugadores</button>
-   <button data-act="tab" data-v="chat" ${t === 'chat' ? 'aria-current="page"' : ''}>${I.chat}Chat anónimo</button>
+   <button data-act="tab" data-v="chat" ${t === 'chat' ? 'aria-current="page"' : ''}>${cd}${I.chat}Chat</button>
    <button data-act="tab" data-v="contrato" ${t === 'contrato' ? 'aria-current="page"' : ''}>${I.doc}Contrato</button></nav>`;
 }
 function thumbs(media, removable, group) {
@@ -467,7 +467,7 @@ function vEntrar() {
     <h1>Entra en la partida.</h1>
     <p class="lede">Tu nombre y tu contraseña. Solo se pide una vez: el móvil recuerda la sesión.</p>
     <div class="sp-20"><label class="label" for="l-name">Nombre</label><input class="field" id="l-name" autocomplete="username" autocapitalize="words" value="${esc(l.name)}"></div>
-    <div class="sp-16"><label class="label" for="l-pass">Contraseña</label><input class="field" id="l-pass" type="password" autocomplete="current-password" value="${esc(l.pass)}"></div>
+    <div class="sp-16"><label class="label" for="l-pass">Contraseña</label><div class="pwrap"><input class="field" id="l-pass" type="password" autocomplete="current-password" value="${esc(l.pass)}"><button type="button" class="eye" data-act="eye" aria-label="Mostrar contraseña">${I.eye}</button></div></div>
     ${l.err ? `<p class="err" role="alert">${esc(l.err)}</p>` : ''}
     <button class="btn sp-20 ${l.busy ? 'spin' : ''}" type="submit" ${l.busy ? 'disabled' : ''}>Entrar</button>
     <p class="small sp-12">¿Has olvidado la contraseña? Pídesela a quien administra la partida: te pondrá una nueva.</p>
@@ -483,7 +483,7 @@ function vSolicitud() {
     <h1>Solicita unirte.</h1>
     <p class="lede">Los tres primeros en registrarse son fundadores. Del cuarto en adelante, la Junta de Sabios vota si entras. Hasta que te acepten no ves el estado, no tocas ni te pueden tocar.</p>
     <div class="sp-20"><label class="label" for="s-name">Nombre</label><input class="field" id="s-name" autocomplete="username" autocapitalize="words" placeholder="Como te conoce el grupo" value="${esc(f.name)}"></div>
-    ${hasSession ? '' : `<div class="sp-16"><label class="label" for="s-pass">Contraseña</label><input class="field" id="s-pass" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" value="${esc(f.pass)}"></div>`}
+    ${hasSession ? '' : `<div class="sp-16"><label class="label" for="s-pass">Contraseña</label><div class="pwrap"><input class="field" id="s-pass" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" value="${esc(f.pass)}"><button type="button" class="eye" data-act="eye" aria-label="Mostrar contraseña">${I.eye}</button></div></div>`}
     <div class="stack sp-20">${texts.map((t, i) => `<label class="card check"><input type="checkbox" data-act="chk" data-i="${i}" ${f.checks[i] ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
     ${f.err ? `<p class="err" role="alert">${esc(f.err)}</p>` : ''}
     <div class="push" style="padding-top:22px"><button class="btn ${f.busy ? 'spin' : ''}" type="submit" data-live="solbtn" ${ready && !f.busy ? '' : 'disabled'}>Solicitar unirme</button>
@@ -589,8 +589,29 @@ function sheetHtml() {
 
 /* ---------- chat anónimo ---------- */
 let chatTimer = null;
-const chatMsgs = () => ((S.chat && S.chat.messages) || []).map(m => `<div class="msg ${m.mine ? 'mine' : ''}"><div class="who">${m.mine ? 'Tú · ' : ''}${esc(m.alias)}<span>${fmtTime(ts(m.at))}</span></div><div class="txt">${esc(m.body)}${player() && player().is_admin ? `<button class="mdel" data-act="chat-del" data-id="${m.id}" aria-label="Borrar mensaje">×</button>` : ''}</div></div>`).join('') || '<p class="small" style="text-align:center;margin-top:30px">Aún no hay mensajes. Escribe el primero.</p>';
-async function loadChat() { S.chat = await rpc('chat_list'); }
+const chatSeen = () => { try { return +localStorage.getItem('nov-chat-seen') || 0; } catch (_) { return 0; } };
+const chatUnread = () => (S.chatLast || 0) > chatSeen();
+const aliasHue = a => { let h = 0; for (const c of a) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const dayKey = t => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(t);
+const dayLabel = t => { const k = dayKey(t), n = now(); return k === dayKey(n) ? 'Hoy' : k === dayKey(n - 864e5) ? 'Ayer' : new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', day: 'numeric', month: 'long' }).format(t); };
+function chatMsgs() {
+  let last = '';
+  return ((S.chat && S.chat.messages) || []).map(m => {
+    const t = ts(m.at), k = dayKey(t), sep = k !== last ? `<div class="daysep"><span>${dayLabel(t)}</span></div>` : ''; last = k;
+    return `${sep}<div class="msg ${m.mine ? 'mine' : ''}"><div class="who" ${m.mine ? '' : `style="color:hsl(${aliasHue(m.alias)} 48% 30%)"`}>${m.mine ? 'Tú · ' : ''}${esc(m.alias)}<span>${fmtTime(t)}</span></div><div class="txt">${esc(m.body)}${player() && player().is_admin ? `<button class="mdel" data-act="chat-del" data-id="${m.id}" aria-label="Borrar mensaje">×</button>` : ''}</div></div>`;
+  }).join('') || '<p class="small" style="text-align:center;margin-top:30px">Aún no hay mensajes. Escribe el primero.</p>';
+}
+function markChatSeen() {
+  const ms = (S.chat && S.chat.messages) || []; const mx = ms.length ? ms[ms.length - 1].id : 0;
+  try { if (mx > chatSeen()) localStorage.setItem('nov-chat-seen', String(mx)); } catch (_) { }
+  paintChatDot();
+}
+function paintChatDot() {
+  const b = app.querySelector('.nav [data-v="chat"]'); if (!b) return;
+  const d = b.querySelector('.dot'), want = chatUnread() && S.view !== 'chat';
+  if (want && !d) b.insertAdjacentHTML('afterbegin', '<span class="dot" aria-label="Mensajes nuevos"></span>'); else if (!want && d) d.remove();
+}
+async function loadChat() { S.chat = await rpc('chat_list'); markChatSeen(); }
 function paintChat(stick) {
   const l = document.getElementById('chat-list'); if (!l) return;
   const near = stick || l.scrollHeight - l.scrollTop - l.clientHeight < 80;
@@ -618,7 +639,7 @@ async function submitChat(e) {
 const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, propuesta: vPropuesta, tregua: vTregua, mias: vMias, jugadores: vJugadores, chat: vChat, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
 function render() {
   const out = (VIEWS[S.view] || vEstado)();
-  const keep = [...app.querySelectorAll('.toast,.push-note')];
+  const keep = [...app.querySelectorAll('.toast,.push-note,.offbar')];
   app.className = 'app' + (out.seal ? ' seal' : '');
   app.innerHTML = out.html + (S.sheet ? sheetHtml() : '');
   keep.forEach(n => app.appendChild(n));
@@ -689,6 +710,7 @@ async function poll() {
   try {
     const hadNotice = notice() && notice().touch_id;
     const changed = await refresh();
+    if (player() && player().status === 'admitted' && !player().next_edition) { try { S.chatLast = await rpc('chat_last'); paintChatDot(); } catch (_) { } }
     if (!changed) return;
     const newNotice = notice() && notice().touch_id !== hadNotice;
     if (newNotice) pushNote();
@@ -873,11 +895,14 @@ const serverOffsetMs = () => Math.round(skew / 1000) * 1000;
 app.addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const a = b.dataset.act;
+  const slow = !['eye', 'tab', 'ago', 'chk', 'close-sheet', 'hide', 'rep-filter', 'rep-toggle'].includes(a) && !a.startsWith('tab-');
+  if (slow) b.classList.add('spin');
   try {
     switch (a) {
       case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { await loadPlayers(); } if (b.dataset.v === 'chat') { try { await loadChat(); } catch (_) { } } go(b.dataset.v); break;
       case 'chat-del': if (confirm('¿Borrar este mensaje?')) { await rpc('admin_chat_delete', { p_id: +b.dataset.id }); await loadChat(); paintChat(); } break;
       case 'change-pass': { const np = prompt('Escribe tu nueva contraseña (mínimo 6 caracteres):'); if (np === null) break; if (np.length < 6) { toast('Mínimo 6 caracteres.'); break; } const { error } = await sb.auth.updateUser({ password: np }); toast(error ? 'No se ha podido cambiar. Inténtalo otra vez.' : 'Contraseña cambiada.'); break; }
+      case 'eye': { const i = b.parentElement.querySelector('input'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña'); b.classList.toggle('on', show); break; }
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;
@@ -925,6 +950,7 @@ app.addEventListener('click', async e => {
       case 'refresh': S.sheet = false; await refresh(); render(); break;
     }
   } catch (err) { toast(errMsg(err)); }
+  finally { b.classList.remove('spin'); }
 });
 app.addEventListener('change', e => {
   const t = e.target;
@@ -1003,3 +1029,13 @@ sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT' && S.me) { S.me = null
     S.view = 'entrar'; S.login.err = errMsg(err); render();
   }
 })();
+
+/* ---------- sin conexión ---------- */
+function paintOffline() {
+  const o = app.querySelector('.offbar');
+  if (navigator.onLine) { if (o) o.remove(); return; }
+  if (!o) app.insertAdjacentHTML('beforeend', '<div class="offbar" role="status">Sin conexión. Los cambios no se enviarán hasta que vuelva.</div>');
+}
+addEventListener('online', () => { paintOffline(); poll(); });
+addEventListener('offline', paintOffline);
+paintOffline();

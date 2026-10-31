@@ -1,7 +1,7 @@
 // Service worker: caché básica de la app y recepción de avisos push.
-// El texto del aviso es SIEMPRE genérico: nunca se lee nada del contenido del push.
-const CACHE = 'noviembrada-v24';
-const SHELL = ['./', 'index.html', 'app.js', 'contract.js', 'config.js', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png'];
+// Los avisos push llevan su propio texto (título y cuerpo); si no llega ninguno, sale «Tienes un aviso.».
+const CACHE = 'noviembrada-v25';
+const SHELL = ['./', 'index.html', 'app.js', 'contract.js', 'config.js', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png', 'fonts/fonts.css', 'fonts/LibreCaslonText-italic-400.woff2', 'fonts/LibreCaslonText-normal-400.woff2', 'fonts/LibreCaslonText-normal-700.woff2', 'fonts/LibreFranklin-normal-400.woff2', 'fonts/LibreFranklin-normal-500.woff2', 'fonts/LibreFranklin-normal-600.woff2'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -24,7 +24,6 @@ self.addEventListener('fetch', e => {
 });
 
 self.addEventListener('push', e => {
-  // Solo el aviso de bienvenida lleva texto propio; el resto llega sin contenido y sale genérico.
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { }
   e.waitUntil(self.registration.showNotification(d.title || 'NOVIEMBRADA', {
     body: d.body || 'Tienes un aviso.', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || 'noviembrada', renotify: true
