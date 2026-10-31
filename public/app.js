@@ -222,7 +222,7 @@ function vEstado() {
     <p class="lead">Solo lo ves tú.<br>Nadie más sabe quién la lleva.</p>
     <p class="small sp-8">${drawn ? 'Sorteo hecho.' : 'Sorteo pendiente.'}</p>
     ${notice() ? `<button class="btn pulse sp-16" data-act="open-aviso">Tienes un aviso pendiente</button>` : ''}
-    <div class="card note push" style="width:100%;text-align:left;${notice() ? 'margin-top:16px' : ''}">Si te preguntan «¿la llevas?», todos responden lo mismo: <em>«no te lo digo»</em>. Si los demás dicen «no», quien calla queda delatado.</div>
+    <div class="card note push" style="width:100%;text-align:left;${notice() ? 'margin-top:16px' : ''}">${tip()}</div>
     ${pushPrompt()}</section></main>${nav()}` };
 }
 
@@ -644,6 +644,29 @@ async function submitChat(e) {
   const i = document.getElementById('chat-in'), t = i.value.trim(); if (!t) return;
   i.value = '';
   try { await rpc('chat_send', { p_body: t }); await loadChat(); paintChat(true); } catch (err) { i.value = t; toast(errMsg(err)); }
+}
+
+/* ---------- frases de la pantalla de inicio: una distinta cada vez que se abre la app ---------- */
+const TIPS = [
+  'Si te preguntan «¿la llevas?», todos responden lo mismo: <em>«no te lo digo»</em>. Si los demás dicen «no», quien calla queda delatado.',
+  'Engañar para pillar es un arte. Mentir para librarte es una condena.',
+  'Nadie sabe quién la lleva. Todos sospechan de todos. Así debe ser.',
+  'Un toque se registra en 30 minutos. El honor, en bastante menos.',
+  'El que calla otorga. El que responde <em>«no te lo digo»</em> sobrevive.',
+  'Cada saludo es una sospecha. Cada abrazo, un posible toque.',
+  'Lo que se dice en el chat anónimo, anónimo se queda. Lo que se hace con las manos, el tiempo lo acabará contando.',
+  'Quien la lleva hoy sonríe. Quien la lleva mañana también, pero por dentro no.',
+  'Noviembre es largo. La paciencia del cazador, todavía más.',
+  'No se lo digas a nadie, ni a tu mejor amigo. Sobre todo, a tu mejor amigo.'
+];
+let tipIdx = -1;
+function tip() {
+  if (tipIdx < 0) {
+    let last = -1; try { last = +localStorage.getItem('nov-tip'); } catch (_) { }
+    do { tipIdx = Math.floor(Math.random() * TIPS.length); } while (tipIdx === last && TIPS.length > 1);
+    try { localStorage.setItem('nov-tip', String(tipIdx)); } catch (_) { }
+  }
+  return TIPS[tipIdx];
 }
 
 /* ---------- render ---------- */
