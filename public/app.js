@@ -223,7 +223,7 @@ function vEstado() {
     <p class="lead">Solo lo ves tú.<br>Nadie más sabe quién la lleva.</p>
     <p class="small sp-8">${drawn ? 'Sorteo hecho.' : 'Sorteo pendiente.'}</p>
     ${notice() ? `<button class="btn pulse sp-16" data-act="open-aviso">Tienes un aviso pendiente</button>` : ''}
-    <div class="card note push" style="width:100%;text-align:left;${notice() ? 'margin-top:16px' : ''}">${tip()}</div>
+    <div class="card note push tip" style="width:100%;${notice() ? 'margin-top:16px' : ''}">${tip()}</div>
     ${pushPrompt()}</section></main>${nav()}` };
 }
 
