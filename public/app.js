@@ -203,7 +203,7 @@ function vEstado() {
       <div class="push" style="width:100%;padding-top:20px">
         <button class="btn paper" data-act="go-tocar">He tocado a alguien</button>
         <p class="small sp-12">Proclama «¡la llevas!» en voz alta al tocar. Tienes 30 minutos para registrarlo. Toca el círculo para ocultar.</p>
-        <div class="memo sp-16">🎥 Graba el pillado en vídeo. Será un bonito recuerdo: al acabar el mes, todos los vídeos se juntan en el Historial.</div>
+        <div class="memo sp-16">Graba el pillado en vídeo. Será un bonito recuerdo: al acabar el mes, todos los vídeos se juntan en el Historial.</div>
       </div></section></main>${nav()}` };
   }
   if (S.reveal) {
@@ -694,21 +694,15 @@ const TAUNTS = [
   'Tus amigos sonríen. Tú no. Aprende de esto.',
   'Que no te vea nadie con esa cara, que se nota. Disimula, pringao.',
   'Venga, a correr. Que si te quedas quieto, huele a derrota.',
-  'Qué pena das, de verdad. Pero adelante, sigue.',
-  'Dicen que el que la lleva aprende. Tú, de momento, no.',
-  'Ni se te ocurra quejarte: te lo has buscado, so pringado.',
-  'Ahora eres el centro de atención. Disfrútalo, desgraciado.',
-  'Si te sirve de consuelo, nadie te compadece. Al revés.',
-  'No la sueltes rápido: tu orgullo todavía está en el suelo.',
-  'Qué ridículo. Y qué ganas de verte pasársela a otro.'
+  'Dicen que el que la lleva aprende. Tú, de momento, no.'
 ];
 const TAUNTS_INLINE = [
   'Ya la llevas. Ni tan bien, ¿eh?',
   'Te la han colado. Me pongo el sombrero.',
-  'Menudo ridículo. Ni tan bien.',
-  'Enhorabuena, pringao. Me pongo el sombrero.'
+  'Ni tan bien.',
+  'Enhorabuena, me pongo el sombrero.'
 ];
-const CLOSERS = ['Ni tan bien.', 'Me pongo el sombrero.', 'Sin comentarios.', 'Cosas que pasan.', 'Que Dios te pille confesado.', 'Fin del comunicado.', 'Amén.', 'Y lo sabes.'];
+const CLOSERS = ['Ni tan bien.', 'Me pongo el sombrero.', 'Sin comentarios.', 'Cosas que pasan.', 'Fin del comunicado.', 'Amén.', 'Y lo sabes.'];
 function tauntHtml() {
   if (!S.taunt) {
     let last = ''; try { last = localStorage.getItem('nov-taunt') || ''; } catch (_) { }
