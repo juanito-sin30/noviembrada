@@ -657,7 +657,17 @@ const TIPS = [
   'Lo que se dice en el chat anónimo, anónimo se queda. Lo que se hace con las manos, el tiempo lo acabará contando.',
   'Quien la lleva hoy sonríe. Quien la lleva mañana también, pero por dentro no.',
   'Noviembre es largo. La paciencia del cazador, todavía más.',
-  'No se lo digas a nadie, ni a tu mejor amigo. Sobre todo, a tu mejor amigo.'
+  'No se lo digas a nadie, ni a tu mejor amigo. Sobre todo, a tu mejor amigo.',
+  'Hay quien pasa el mes entero sin saber que la llevaba. La ignorancia no absuelve.',
+  'El silencio de esta noche puede ser la sentencia de mañana.',
+  'En esta casa se perdona casi todo. Casi.',
+  'Que tiemble el que se confíe: el primer descuido es siempre el último.',
+  'La historia no recordará a quien la llevó con dignidad. Recordará a quien la soltó con astucia.',
+  'Una mirada de más, una sonrisa de menos. Así se pierden las amistades.',
+  'La Noviembrada no se juega: se sobrevive.',
+  'Cuando creas que estás a salvo, mira detrás de ti. Alguien ya ha dejado de sonreír.',
+  'Los valientes la llevan sin miedo. Los sensatos la pasan sin ruido.',
+  'Treinta días. Una sola verdad. Nadie te la dirá.'
 ];
 let tipIdx = -1;
 function tip() {
