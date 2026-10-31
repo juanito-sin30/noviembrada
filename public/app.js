@@ -203,6 +203,7 @@ function vEstado() {
       <div class="push" style="width:100%;padding-top:20px">
         <button class="btn paper" data-act="go-tocar">He tocado a alguien</button>
         <p class="small sp-12">Proclama «¡la llevas!» en voz alta al tocar. Tienes 30 minutos para registrarlo. Toca el círculo para ocultar.</p>
+        <div class="memo sp-16">🎥 Graba el pillado en vídeo. Será un bonito recuerdo: al acabar el mes, todos los vídeos se juntan en el Historial.</div>
       </div></section></main>${nav()}` };
   }
   if (S.reveal) {
@@ -244,7 +245,7 @@ function vTocar() {
     <div class="sp-20"><div class="label">¿Cuándo ha sido?</div><div class="seg">${agoBtns}</div><p class="small sp-8">Minutos. Pasados 30, el toque es nulo.</p></div>
     ${trucesCard()}
     <div class="sp-16"><label class="label" for="lugar">¿Dónde ha sido?</label><input class="field" id="lugar" name="lugar" autocomplete="off" placeholder="Por ejemplo, Plaça Catalunya" value="${esc(t.place)}"><p class="small sp-8">Obligatorio. Solo lo veréis tú y el tocado (y la Junta si hay disputa). No sale en el informe.</p></div>
-    <div class="sp-16"><div class="label">Pruebas (opcional)</div>${mediaPicker('tocar', t, `Quedan en el registro. Las verá ${who ? esc(who) : 'el tocado'} y, si hay disputa, la Junta. Al final del mes se publican para todos.`)}</div>
+    <div class="sp-16"><div class="label">Pruebas (opcional)</div>${mediaPicker('tocar', t, `Un vídeo del pillado será un bonito recuerdo. Quedan en el registro: los verá ${who ? esc(who) : 'el tocado'} y, si hay disputa, la Junta. Al final del mes se juntan todos en el Historial.`)}</div>
     ${t.err && !t.media.length ? `<p class="err" role="alert">${esc(t.err)}</p>` : ''}
     <div class="push" style="padding-top:22px"><button class="btn ${t.busy ? 'spin' : ''}" type="submit" data-live="tsend" ${t.to && t.place.trim().length >= 2 && !t.busy ? '' : 'disabled'}>${t.busy ? 'Registrando…' : 'Registrar toque'}</button>
     <p class="small sp-12" style="text-align:center">${t.to ? `Solo se avisará a ${esc(who || 'el tocado')}. El toque cuenta ya; ${esc(who || 'el tocado')} puede disputarlo durante 24 h.` : 'Elige a quién has tocado.'}</p></div>

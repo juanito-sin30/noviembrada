@@ -338,3 +338,5 @@ h1{text-wrap:balance}.screen>h1:first-child,.screen>.eyebrow+h1{position:relativ
 /* mensaje burlón sobre el lacre */
 .taunt{margin-top:14px;width:100%;padding:16px 18px;text-align:center;font-family:var(--serif);font-style:italic;font-size:16px;line-height:1.5;color:var(--on-seal);border:1px solid rgba(242,234,219,.55);box-shadow:inset 0 0 0 4px var(--seal),inset 0 0 0 5px rgba(242,234,219,.3);border-radius:10px}
 .taunt .closer{display:block;margin-top:8px;font-size:14px;font-weight:700;font-style:normal;letter-spacing:.02em;color:#F0D9A0}
+
+.memo{width:100%;padding:12px 14px;border-radius:12px;background:rgba(0,0,0,.18);color:var(--on-seal);font-size:13.5px;line-height:1.5;text-align:center}
