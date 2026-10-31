@@ -289,15 +289,26 @@ const saveVote = (c, t, choice) => { try { localStorage.setItem(voteKey(c), JSON
 const newToken = () => { try { const a = new Uint8Array(24); crypto.getRandomValues(a); return Array.from(a, x => x.toString(16).padStart(2, '0')).join(''); } catch (_) { return String(Math.random()).slice(2) + String(Date.now()) + String(Math.random()).slice(2); } };
 const KIND_TEXT = { dispute: 'Disputa de un toque.', admission: 'Solicitud para entrar.', reform: 'Propuesta de reforma.', truce: 'Propuesta de tregua.' };
 function vJunta() {
-  const cards = S.cases.map(c => {
-    const status = c.status === 'closed' ? '<span class="pill muted">Cerrado</span>' : `<span class="pill muted">Cierra en ${hoursLeft(c)} h</span>`;
-    const mine = c.party ? '<span class="pill">Eres parte</span>' : c.voted ? '<span class="pill">Has votado</span>' : c.status === 'open' ? '<span class="pill solid">Vota</span>' : '';
-    return `<button class="case" data-act="open-case" data-id="${c.id}"><div class="meta"><span class="pill dark">Caso ${c.id}</span>${status}${mine}</div><h2>${esc(c.question)}</h2><p>${c.verdict ? esc(c.verdict) : esc(KIND_TEXT[c.kind] || '')}</p></button>`;
-  }).join('');
+  const card = (c, kind) => {
+    const hl = c.status === 'open' ? hoursLeft(c) : 0, urgent = kind === 'need' && hl <= 6;
+    const when = c.status === 'closed' ? '' : `<span class="when ${urgent ? 'urgent' : ''}">Cierra en ${hl} h</span>`;
+    const tag = kind === 'need' ? '<span class="vote-cta">Votar</span>' : c.party ? '<span class="state">Eres parte</span>' : kind === 'cur' ? '<span class="state">✓ Has votado</span>' : '';
+    const text = c.verdict ? esc(c.verdict) : esc(KIND_TEXT[c.kind] || '');
+    return `<button class="case ${kind}" data-act="open-case" data-id="${c.id}"><div class="meta"><span class="cno">Caso ${c.id}</span>${when}<span class="grow"></span>${tag}</div><h2>${esc(c.question)}</h2><p>${text}</p></button>`;
+  };
+  const need = S.cases.filter(c => c.status === 'open' && !c.party && !c.voted), cur = S.cases.filter(c => c.status === 'open' && (c.party || c.voted)), done = S.cases.filter(c => c.status !== 'open');
+  const sec = (title, n, body, cls) => n ? `<div class="jsec ${cls || ''}"><div class="jhead"><span>${title}</span><b>${n}</b></div><div class="stack" style="gap:10px">${body}</div></div>` : '';
+  const sum = need.length ? `<div class="jsum alert"><b>${need.length}</b> ${need.length === 1 ? 'caso espera' : 'casos esperan'} tu voto</div>` : `<div class="jsum ok">Estás al día. No tienes votos pendientes.</div>`;
+  const closedBody = S.showClosed ? done.map(c => card(c, 'done')).join('') : '';
+  const closedSec = done.length ? `<div class="jsec"><button class="jhead tog" data-act="toggle-closed" aria-expanded="${!!S.showClosed}"><span>Cerrados</span><b>${done.length}</b><i>${S.showClosed ? 'Ocultar' : 'Ver'}</i></button>${S.showClosed ? `<div class="stack" style="gap:10px">${closedBody}</div>` : ''}</div>` : '';
   return { html: `${header()}<main class="main"><section class="screen pad fade">
     <h1>Junta de Sabios</h1>
     <p class="lede">La forman todos los jugadores. Voto anónimo y mayoría simple. Quien es parte en un caso no vota.</p>
-    <div class="stack sp-20" style="gap:10px">${cards || '<div class="card note">No hay casos abiertos.</div>'}</div>
+    ${sum}
+    ${sec('Te esperan', need.length, need.map(c => card(c, 'need')).join(''), 'need')}
+    ${sec('En curso', cur.length, cur.map(c => card(c, 'cur')).join(''))}
+    ${closedSec}
+    ${S.cases.length ? '' : '<div class="card note sp-20">No hay casos abiertos.</div>'}
     ${S.truces.length ? `<div class="card note sp-16" style="width:100%;text-align:left"><strong>Treguas aprobadas</strong><br>${S.truces.map(t => `${esc(t.place)}: ${fmtDay(ts(t.start))} ${fmtTime(ts(t.start))} a ${fmtDay(ts(t.end))} ${fmtTime(ts(t.end))}`).join('<br>')}</div>` : ''}
     <div class="push" style="padding-top:18px"><button class="btn line" data-act="go-propuesta">Propuesta</button></div>
   </section></main>${nav()}` };
@@ -903,6 +914,7 @@ app.addEventListener('click', async e => {
       case 'chat-del': if (confirm('¿Borrar este mensaje?')) { await rpc('admin_chat_delete', { p_id: +b.dataset.id }); await loadChat(); paintChat(); } break;
       case 'change-pass': { const np = prompt('Escribe tu nueva contraseña (mínimo 6 caracteres):'); if (np === null) break; if (np.length < 6) { toast('Mínimo 6 caracteres.'); break; } const { error } = await sb.auth.updateUser({ password: np }); toast(error ? 'No se ha podido cambiar. Inténtalo otra vez.' : 'Contraseña cambiada.'); break; }
       case 'eye': { const i = b.parentElement.querySelector('input'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña'); b.classList.toggle('on', show); break; }
+      case 'toggle-closed': S.showClosed = !S.showClosed; render(); break;
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;

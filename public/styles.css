@@ -271,3 +271,28 @@ textarea.field:focus,.field:focus{border-color:var(--seal);outline:none;box-shad
 .daysep{align-self:center;margin:8px 0 2px}.daysep span{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sunk);padding:3px 10px;border-radius:999px}
 .offbar{position:absolute;left:0;right:0;top:0;z-index:60;padding:calc(6px + env(safe-area-inset-top,0px)) 14px 6px;background:var(--night);color:var(--paper);font-size:12.5px;text-align:center}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Junta: jerarquía de casos */
+.jsum{margin-top:16px;padding:12px 14px;border-radius:12px;font-size:14px}
+.jsum.alert{background:var(--seal);color:var(--on-seal);box-shadow:0 4px 14px rgba(139,29,29,.22)}.jsum.alert b{font-family:var(--serif);font-size:20px;margin-right:4px}
+.jsum.ok{background:var(--sunk);color:var(--muted)}
+.jsec{margin-top:22px}
+.jhead{display:flex;align-items:baseline;gap:8px;width:100%;margin:0 0 10px;padding:0;border:0;background:none;text-align:left;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.jhead b{font-family:var(--serif);font-size:13px;color:var(--ink)}
+.jhead i{margin-left:auto;font-style:normal;letter-spacing:.04em;text-transform:none;color:var(--gold);font-size:13px}
+.jsec.need .jhead{color:var(--seal)}
+.case .grow{flex:1}.case .cno{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.case .when{font-size:12px;color:var(--muted)}.case .when.urgent{color:var(--seal);font-weight:600}
+.case .state{font-size:12px;font-weight:600;color:var(--gold)}
+.case .vote-cta{background:var(--seal);color:var(--on-seal);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:999px}
+.case.need{border:1px solid var(--seal);border-left:5px solid var(--seal);background:var(--card);box-shadow:0 6px 18px rgba(139,29,29,.14);padding:17px 16px}
+.case.need h2{font-size:21px}
+.case.cur{box-shadow:0 1px 3px rgba(31,26,21,.08)}
+.case.done{background:var(--sunk);border-color:transparent;padding:12px 14px}
+.case.done h2{font-size:15.5px;color:var(--muted)}.case.done p{font-size:12.5px}
+/* Pulido general */
+.card{box-shadow:0 1px 2px rgba(31,26,21,.05)}
+.btn{transition:transform .12s ease,background-color .2s ease;letter-spacing:.01em}.btn:active{transform:scale(.985)}
+.nav{box-shadow:0 -1px 0 var(--line),0 -6px 16px rgba(31,26,21,.04);border-top:0}
+.screen>h1+.lede{margin-bottom:2px}
+h1{letter-spacing:-.005em}
