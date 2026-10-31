@@ -687,11 +687,11 @@ function tip() {
 const TAUNTS = [
   'Enhorabuena, campeón: ya la llevas. Qué orgullo de perdedor.',
   'Otro que cae. Y encima con esa cara de no haberlo visto venir.',
-  'La llevas tú, joder. Con lo listo que te creías.',
-  'Menudos reflejos de mierda. Te la han colado de lleno.',
-  'Ya te vale, coño. Ahora a pagar la fama.',
+  'La llevas tú. Con lo listo que te creías.',
+  'Menudos reflejos. Te la han colado de lleno.',
+  'Ya te vale. Ahora a pagar la fama.',
   'Mira quién la lleva: el que decía que a él nunca. Ja.',
-  'Tus amigos sonríen. Tú no. Aprende de esto, cabrón.',
+  'Tus amigos sonríen. Tú no. Aprende de esto.',
   'Que no te vea nadie con esa cara, que se nota. Disimula, pringao.',
   'Venga, a correr. Que si te quedas quieto, huele a derrota.',
   'Qué pena das, de verdad. Pero adelante, sigue.',
@@ -705,7 +705,7 @@ const TAUNTS = [
 const TAUNTS_INLINE = [
   'Ya la llevas. Ni tan bien, ¿eh?',
   'Te la han colado. Me pongo el sombrero.',
-  'Menudo ridículo, joder. Ni tan bien.',
+  'Menudo ridículo. Ni tan bien.',
   'Enhorabuena, pringao. Me pongo el sombrero.'
 ];
 const CLOSERS = ['Ni tan bien.', 'Me pongo el sombrero.', 'Sin comentarios.', 'Cosas que pasan.', 'Que Dios te pille confesado.', 'Fin del comunicado.', 'Amén.', 'Y lo sabes.'];
