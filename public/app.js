@@ -408,6 +408,7 @@ function vJugadores() {
     <p class="lede">${S.players.length} ${S.players.length === 1 ? 'jugador' : 'jugadores'} en esta edición. Quién la lleva solo lo sabe quien la lleva.</p>
     <ol class="card plist">${rows || '<li>Aún no hay jugadores.</li>'}</ol>
     <ul class="card hist sp-16"><li><button class="histbtn" data-act="go-mias"><span class="t"><b>Mis pilladas</b><span>Las que he hecho y las que me han hecho, con el lugar. Privado.</span></span>${I.right}</button></li></ul>
+    <ul class="card hist sp-16"><li><button class="histbtn" data-act="change-pass"><span class="t"><b>Cambiar mi contraseña</b><span>Elige una nueva para este móvil y los demás.</span></span>${I.right}</button></li></ul>
     <h2 class="sp-24" style="font-size:22px;margin-bottom:0">Ranking</h2>
     ${rk.length ? `<p class="lede">Acumulado de todas las ediciones cerradas: tiempo medio que cada jugador la ha llevado por edición. Cuanto menos, mejor.</p><ol class="card plist rank">${rkRows}</ol>`
       : `<p class="lede">Aparecerá cuando se cierre la primera edición. Suma el tiempo que cada jugador la ha llevado en todas las ediciones y ordena por la media: cuanto menos, mejor. Durante la edición en curso no se enseña, para que no se pueda deducir quién la lleva.</p>`}
@@ -876,6 +877,7 @@ app.addEventListener('click', async e => {
     switch (a) {
       case 'tab': S.sheet = false; if (b.dataset.v === 'junta') { await loadCases(); } if (b.dataset.v === 'jugadores') { await loadPlayers(); } if (b.dataset.v === 'chat') { try { await loadChat(); } catch (_) { } } go(b.dataset.v); break;
       case 'chat-del': if (confirm('¿Borrar este mensaje?')) { await rpc('admin_chat_delete', { p_id: +b.dataset.id }); await loadChat(); paintChat(); } break;
+      case 'change-pass': { const np = prompt('Escribe tu nueva contraseña (mínimo 6 caracteres):'); if (np === null) break; if (np.length < 6) { toast('Mínimo 6 caracteres.'); break; } const { error } = await sb.auth.updateUser({ password: np }); toast(error ? 'No se ha podido cambiar. Inténtalo otra vez.' : 'Contraseña cambiada.'); break; }
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;
