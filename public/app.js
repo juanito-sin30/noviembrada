@@ -192,13 +192,14 @@ function vEstado() {
   if (finished() || showLast()) return vFinal();
   const holding = iHold(), drawn = S.me.draw_done;
   if (S.reveal && holding) {
-    const from = S.me.passed_from ? `<strong style="font-weight:600">Te la pasó ${esc(S.me.passed_from)}.</strong> Regla de Tres: no puedes devolvérsela hasta que el estatus haya pasado por un tercero.` : '<strong style="font-weight:600">Te tocó en el sorteo.</strong> Puedes pasársela a cualquiera.';
+    const from = S.me.passed_from ? `<strong style="font-weight:600">Te la pasó ${esc(S.me.passed_from)}.</strong> La llevas desde hace ${ago(ts(S.me.hold_since))}. Regla de Tres: no puedes devolvérsela hasta que el estatus haya pasado por un tercero.` : '<strong style="font-weight:600">Te tocó en el sorteo.</strong> Puedes pasársela a cualquiera.';
     return { seal: true, html: `${header()}<main class="main"><section class="screen center pad flood">
       <div class="eyebrow" style="color:var(--on-seal-muted)" data-live="eyebrow">${eyebrowTxt()}</div>
       <div class="count" data-live="count">${countdown()}</div>
       <button class="disc pop" data-act="hide" aria-label="Ocultar estado" style="animation-delay:.45s"><b>LA<br>LLEVAS</b><span class="small">desde hace ${ago(ts(S.me.hold_since))}</span></button>
       <div class="timer" style="--t:15s"><i></i></div>
       <div class="passed sp-20 rise" style="animation-delay:.8s">${from}</div>
+      <div class="taunt rise" style="animation-delay:1.1s">${tauntHtml()}</div>
       <div class="push" style="width:100%;padding-top:20px">
         <button class="btn paper" data-act="go-tocar">He tocado a alguien</button>
         <p class="small sp-12">Proclama «¡la llevas!» en voz alta al tocar. Tienes 30 minutos para registrarlo. Toca el círculo para ocultar.</p>
@@ -681,6 +682,43 @@ function tip() {
   return TIPS[tipIdx];
 }
 
+/* ---------- mensajes burlones para quien la lleva ---------- */
+const TAUNTS = [
+  'Enhorabuena, campeón: ya la llevas. Qué orgullo de perdedor.',
+  'Otro que cae. Y encima con esa cara de no haberlo visto venir.',
+  'La llevas tú, joder. Con lo listo que te creías.',
+  'Menudos reflejos de mierda. Te la han colado de lleno.',
+  'Ya te vale, coño. Ahora a pagar la fama.',
+  'Mira quién la lleva: el que decía que a él nunca. Ja.',
+  'Tus amigos sonríen. Tú no. Aprende de esto, cabrón.',
+  'Que no te vea nadie con esa cara, que se nota. Disimula, pringao.',
+  'Venga, a correr. Que si te quedas quieto, huele a derrota.',
+  'Qué pena das, de verdad. Pero adelante, sigue.',
+  'Dicen que el que la lleva aprende. Tú, de momento, no.',
+  'Ni se te ocurra quejarte: te lo has buscado, so pringado.',
+  'Ahora eres el centro de atención. Disfrútalo, desgraciado.',
+  'Si te sirve de consuelo, nadie te compadece. Al revés.',
+  'No la sueltes rápido: tu orgullo todavía está en el suelo.',
+  'Qué ridículo. Y qué ganas de verte pasársela a otro.'
+];
+const TAUNTS_INLINE = [
+  'Ya la llevas. Ni tan bien, ¿eh?',
+  'Te la han colado. Me pongo el sombrero.',
+  'Menudo ridículo, joder. Ni tan bien.',
+  'Enhorabuena, pringao. Me pongo el sombrero.'
+];
+const CLOSERS = ['Ni tan bien.', 'Me pongo el sombrero.', 'Sin comentarios.', 'Cosas que pasan.', 'Que Dios te pille confesado.', 'Fin del comunicado.', 'Amén.', 'Y lo sabes.'];
+function tauntHtml() {
+  if (!S.taunt) {
+    let last = ''; try { last = localStorage.getItem('nov-taunt') || ''; } catch (_) { }
+    const pool = TAUNTS.concat(TAUNTS_INLINE); let m;
+    do { m = pool[Math.floor(Math.random() * pool.length)]; } while (m === last && pool.length > 1);
+    try { localStorage.setItem('nov-taunt', m); } catch (_) { }
+    S.taunt = { m, c: TAUNTS_INLINE.includes(m) ? '' : CLOSERS[Math.floor(Math.random() * CLOSERS.length)] };
+  }
+  return `${esc(S.taunt.m)}${S.taunt.c ? `<span class="closer">${esc(S.taunt.c)}</span>` : ''}`;
+}
+
 /* ---------- render ---------- */
 const VIEWS = { cargando: vCargando, estado: vEstado, tocar: vTocar, aviso: vAviso, disputa: vDisputa, junta: vJunta, caso: vCaso, reforma: vReforma, propuesta: vPropuesta, tregua: vTregua, mias: vMias, jugadores: vJugadores, chat: vChat, contrato: vContrato, clausula: vClausula, instalar: vInstalar, entrar: vEntrar, solicitud: vSolicitud, espera: vEspera, final: vFinal, informe: vInforme };
 function render() {
@@ -695,7 +733,7 @@ function wire() {
   const dial = document.getElementById('dial');
   if (dial) hold(dial, 1200, async () => {
     await refresh();                       // el estado se pide al servidor en el momento
-    S.reveal = true; render(); clearTimeout(revealTimer);
+    S.taunt = null; S.reveal = true; render(); clearTimeout(revealTimer);
     revealTimer = setTimeout(() => { if (S.view === 'estado' && S.reveal) { S.reveal = false; render(); } }, iHold() ? 15000 : 5000);
   });
   [['f-chat', submitChat], ['f-tregua', submitTregua], ['f-entrar', submitEntrar], ['f-sol', submitSol], ['f-tocar', submitTocar], ['f-disputa', submitDisputa], ['f-reforma', submitReforma], ['f-version', submitVersion]]

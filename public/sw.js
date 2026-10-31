@@ -1,6 +1,6 @@
 // Service worker: caché básica de la app y recepción de avisos push.
 // Los avisos push llevan su propio texto (título y cuerpo); si no llega ninguno, sale «Tienes un aviso.».
-const CACHE = 'noviembrada-v33';
+const CACHE = 'noviembrada-v34';
 const SHELL = ['./', 'index.html', 'app.js', 'contract.js', 'config.js', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png', 'fonts/fonts.css', 'fonts/LibreCaslonText-italic-400.woff2', 'fonts/LibreCaslonText-normal-400.woff2', 'fonts/LibreCaslonText-normal-700.woff2', 'fonts/LibreFranklin-normal-400.woff2', 'fonts/LibreFranklin-normal-500.woff2', 'fonts/LibreFranklin-normal-600.woff2'];
 
 self.addEventListener('install', e => {
