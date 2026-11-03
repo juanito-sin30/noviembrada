@@ -562,7 +562,7 @@ function vInforme() {
   const entries = f.chain.filter(e => !flt || e.from === flt || e.to === flt).map(e => {
     const o = open.has(e.id), tag = e.status === 'void' ? 'Anulado' : !e.counts ? 'Sin efecto' : e.disputed ? 'Disputado' : '';
     return `<div class="card entry"><button class="ehead" data-act="rep-toggle" data-id="${e.id}" aria-expanded="${o}"><span class="head"><b>${e.from ? esc(e.from) : 'Sorteo'} → ${esc(e.to)}</b>${tag ? `<span class="pill ${e.status === 'void' ? '' : 'muted'}">${tag}</span>` : ''}</span><span class="sub">${fmtDay(ts(e.touched_at))} · ${fmtTime(ts(e.touched_at))}${e.place ? ' · ' + esc(e.place) : ''}${e.media.length ? ` · ${e.media.length} ${e.media.some(m => m.kind === 'video') ? 'prueba(s)' : e.media.length === 1 ? 'foto' : 'fotos'}` : ''}</span></button>
-      ${o ? `<div class="ebody"><p>${label[e.status] || ''}${e.verdict ? ' · ' + esc(e.verdict) : ''}</p>${e.media.length ? thumbs(e.media) : '<p class="small">Sin fotos ni vídeos.</p>'}</div>` : ''}</div>`;
+      ${o ? `<div class="ebody"><p>${label[e.status] || ''}${e.verdict ? ' · ' + esc(e.verdict) : ''}</p>${e.media.length ? thumbs(e.media) + dlLinks(e, f) : '<p class="small">Sin fotos ni vídeos.</p>'}</div>` : ''}</div>`;
   }).join('');
   const stat = (k, v) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`;
   const rk = f.players.map(p => `<li><span class="pos">${p.pos}</span><span class="nm">${esc(p.name)}</span><span class="tm">${avgTxt(p.secs)}</span></li>`).join('');
@@ -574,6 +574,7 @@ function vInforme() {
       ${st.longest && st.longest.secs ? stat('Más tiempo la llevó ' + esc(st.longest.name), hms(st.longest.secs)) : ''}${st.shortest ? stat('Pase más rápido: ' + esc(st.shortest.name), hms(st.shortest.secs)) : ''}</div>
     <h2 class="sp-24" style="font-size:20px;margin:0">Tiempo llevándola</h2>
     <ol class="card plist rank">${rk}</ol>
+    ${canDownload(f) ? '<div class="card note sp-16" style="width:100%;text-align:left"><b>Solo administración</b><br><span class="small">Descarga todos los vídeos y fotos de la edición, en orden cronológico.</span><button class="btn line small-btn sp-12" data-act="dl-all">Descargar todos</button></div>' : ''}
     <h2 class="sp-24" style="font-size:20px;margin:0">Pillados</h2>
     <div class="fchips sp-12">${chips}</div>
     <div class="stack sp-12" style="gap:10px">${entries || '<p class="small">Sin pillados.</p>'}</div>
@@ -712,6 +713,20 @@ function tauntHtml() {
     S.taunt = { m, c: TAUNTS_INLINE.includes(m) ? '' : CLOSERS[Math.floor(Math.random() * CLOSERS.length)] };
   }
   return `${esc(S.taunt.m)}${S.taunt.c ? `<span class="closer">${esc(S.taunt.c)}</span>` : ''}`;
+}
+
+/* ---------- descarga de pruebas: solo administración y solo con la edición cerrada ---------- */
+const canDownload = f => !!(player() && player().is_admin && f && !f.provisional);
+const mediaExt = m => (/\.(\w+)$/.exec(m.path || '') || [, m.kind === 'video' ? 'mp4' : 'jpg'])[1].replace('quicktime', 'mov');
+const mediaName = (e, m, i) => `${String(i).padStart(3, '0')}_${(e.from || 'Sorteo').replace(/\W+/g, '')}-a-${e.to.replace(/\W+/g, '')}.${mediaExt(m)}`;
+function dlLinks(e, f) {
+  if (!canDownload(f)) return '';
+  return `<div class="row sp-8" style="gap:8px;flex-wrap:wrap">${e.media.map((m, i) => `<button class="btn line small-btn" style="width:auto;padding:0 14px" data-act="dl-one" data-path="${esc(m.path)}" data-name="${esc(mediaName(e, m, e.id))}-${i + 1}.${mediaExt(m)}">Descargar ${m.kind === 'video' ? 'vídeo' : 'foto'} ${i + 1}</button>`).join('')}</div>`;
+}
+async function downloadMedia(path, name) {
+  const { data, error } = await sb.storage.from('proofs').createSignedUrl(path, 300, { download: name });
+  if (error || !data) throw error || new Error('download');
+  const a = document.createElement('a'); a.href = data.signedUrl; a.download = name; document.body.appendChild(a); a.click(); a.remove();
 }
 
 /* ---------- render ---------- */
@@ -983,6 +998,15 @@ app.addEventListener('click', async e => {
       case 'change-pass': { const np = prompt('Escribe tu nueva contraseña (mínimo 6 caracteres):'); if (np === null) break; if (np.length < 6) { toast('Mínimo 6 caracteres.'); break; } const { error } = await sb.auth.updateUser({ password: np }); toast(error ? 'No se ha podido cambiar. Inténtalo otra vez.' : 'Contraseña cambiada.'); break; }
       case 'eye': { const i = b.parentElement.querySelector('input'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña'); b.classList.toggle('on', show); break; }
       case 'toggle-closed': S.showClosed = !S.showClosed; render(); break;
+      case 'dl-one': if (canDownload(S.repFrom === 'jugadores' ? S.rep : S.final)) await downloadMedia(b.dataset.path, b.dataset.name); break;
+      case 'dl-all': {
+        const f = S.repFrom === 'jugadores' ? S.rep : S.final; if (!canDownload(f)) break;
+        const list = f.chain.filter(e => e.status !== 'void').flatMap(e => e.media.map((m, i) => ({ m, name: `${mediaName(e, m, e.id)}`.replace(/(\.\w+)$/, `-${i + 1}$1`) })));
+        if (!list.length) { toast('No hay fotos ni vídeos.'); break; }
+        toast(`Descargando ${list.length} archivos…`);
+        for (const x of list) { await downloadMedia(x.m.path, x.name); await new Promise(r => setTimeout(r, 700)); }
+        toast('Descarga completada.'); break;
+      }
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;

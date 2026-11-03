@@ -55,6 +55,13 @@ tregua (1 h antes y al terminar), penúltimo día (10:00) y fin de la edición (
 Al tocado le llega «Te han pillado. Ya la llevas…». A todos (incluidos tocador y tocado) les llega el anónimo «Ha habido un pillado».
 Así nadie se delata por recibir o no el aviso.
 
+## Descargar los vídeos al acabar (solo administración)
+Durante el juego no se puede descargar nada. Cuando la edición esté **cerrada** (informe final disponible):
+- **Desde la app:** quien es administrador ve en el informe un botón «Descargar todos» y uno por cada foto o vídeo. Los demás jugadores no ven ninguno.
+- **Desde el ordenador:** `bash supabase/admin/export_media.sh` baja todo a `exportacion/ordenados/`, en orden cronológico
+  (`001_2026-11-01_00-04_Aparato-a-Taga.jpg`…), y crea `exportacion/manifiesto.csv` con quién pilló a quién, cuándo y dónde (el lugar es privado y solo sale ahí).
+- Hazlo poco después del cierre: el proyecto gratuito tiene 1 GB de almacenamiento y se pausa tras una semana sin actividad.
+
 ## Resetear una contraseña
 Edita `supabase/admin/reset_password.sql` (nombre en minúsculas, sin acentos, con puntos: «Marta Puig» → `marta.puig`) y ejecútalo.
 
