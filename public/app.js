@@ -393,7 +393,9 @@ function vCaso() {
       <div class="life" style="margin:0 0 10px">${I.smallLock}Tu voto es anónimo: se guarda sin tu nombre.</div>
       ${c.i_voted && !mv && c.status === 'open' ? '<p class="small" style="margin-bottom:10px">Ya has votado. Solo puedes cambiar el voto desde el móvil con el que votaste.</p>' : ''}
       ${canVote ? `<button class="btn" data-act="vote" ${S.pick && !(mv && mv.c === S.pick) ? '' : 'disabled'}>${c.i_voted ? 'Cambiar voto' : 'Emitir voto'}</button>${c.i_voted ? '<p class="small sp-8">Puedes cambiarlo hasta que se cierre la votación.</p>' : ''}` : `<button class="btn" disabled>${party ? 'No votas en tu propio caso' : c.status === 'closed' ? 'Votación cerrada' : 'Voto emitido'}</button>`}
-    </div></section></main>${nav()}` };
+    </div>
+    ${(c.kind === 'reform' || c.kind === 'truce') && player().is_admin ? '<div class="sp-16"><button class="btn line small-btn" data-act="admin-del-proposal">Eliminar esta propuesta (Administración)</button></div>' : ''}
+  </section></main>${nav()}` };
 }
 
 const hms = secs => { const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60); return d ? `${d} d ${h} h ${pad2(m)} min` : h ? `${h} h ${pad2(m)} min` : `${m} min`; };
@@ -1007,6 +1009,7 @@ app.addEventListener('click', async e => {
         for (const x of list) { await downloadMedia(x.m.path, x.name); await new Promise(r => setTimeout(r, 700)); }
         toast('Descarga completada.'); break;
       }
+      case 'admin-del-proposal': if (confirm('¿Eliminar esta propuesta para siempre? Se borran también sus votos.')) { await rpc('admin_delete_proposal', { p_case: S.caseId }); S.detail = null; await loadCases(); await refresh(); go('junta'); toast('Propuesta eliminada.'); } break;
       case 'tab-junta': await loadCases(); go('junta'); break;
       case 'tab-contrato': go('contrato'); break;
       case 'tab-estado': go('estado'); break;

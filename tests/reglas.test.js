@@ -138,6 +138,22 @@ test('sorteo: un jugador excluido sigue en la partida pero nunca sale elegido', 
   await g.close();
 });
 
+test('el administrador elimina propuestas (reforma o tregua) pero no disputas ni admisiones', async () => {
+  const g = await freshDb();
+  const a = await g.join('Aina'), b = await g.join('Gonzalo'), c = await g.join('Juanito');
+  await g.sql(`update players set is_admin = true where name='Aina'`);
+  const d = await g.join('Lola');
+  const adm = (await g.rpc(a, 'list_cases'))[0].id;
+  await g.rpc(b, 'propose_reform', 'Cambiar algo', 'Texto de la reforma de prueba para borrar.');
+  const ref = (await g.sql(`select id from cases where kind='reform'`)).rows[0].id;
+  await rejects(g.rpc(b, 'admin_delete_proposal', ref), 'not_admin');
+  await rejects(g.rpc(a, 'admin_delete_proposal', adm), 'not_found');
+  await g.rpc(a, 'admin_delete_proposal', ref);
+  assert.equal((await g.sql(`select count(*)::int n from cases where kind='reform'`)).rows[0].n, 0);
+  assert.equal((await g.sql(`select count(*)::int n from cases where id=$1`, [adm])).rows[0].n, 1);
+  await g.close();
+});
+
 test('sorteo: solo lo sabe el elegido y no se puede repetir', async () => {
   const { g, P } = await partida(4);
   await rejects(g.rpc(P.Gonzalo, 'admin_draw'), 'not_admin');
